@@ -74,7 +74,9 @@ impl State {
         match action {
             Fold => {
                 player.hole_cards = [None, None];
-                if self.players.iter().all(|player| player.hole_cards[0].is_none()) {} // TODO: win condition (last remaining player wins)
+                if self.players.iter().filter(|player| player.hole_cards[0].is_some()).count() == 1 {
+                     // TODO: win condition (last remaining player wins)
+                }
             },
             Call => {
                 let bet_amount = self.cur_bet - player.bet;
@@ -163,7 +165,7 @@ impl State {
 // ——— Enums ——————————————————————————————————————————————————————————————————————————————————————————————————————————
 
 #[derive(Debug)]
-pub enum Street { Preflop, Flop, Turn, River }
+pub enum Street { Preflop, Flop, Turn, River, Showdown }
 pub use Street::*;
 
 impl Street {
@@ -172,7 +174,8 @@ impl Street {
             Preflop => Flop,
             Flop => Turn,
             Turn => River,
-            River => panic!("reset todo"),
+            River => Showdown,
+            Showdown => panic!("reset todo"),
         };
     }
 }
@@ -184,6 +187,7 @@ impl fmt::Display for Street {
             Flop => write!(f, "Flop"),
             Turn => write!(f, "Turn"),
             River => write!(f, "River"),
+            Showdown => write!(f, "Showdown"),
         }
     }
 }
