@@ -76,7 +76,7 @@ impl Deck {
     }
 
     pub fn shuffle(&mut self) {
-        let mut rng = thread_rng();
+        let mut rng = StdRng::seed_from_u64(42);
         self.draw_pile.shuffle(&mut rng);
     }
 
@@ -87,6 +87,4 @@ impl Deck {
         }
     }
 }
-
-// NOTE: eventually add deck seed -- can recreate a specific deck to simulate online games -- seed builder would take in order of draw_pile, and output a fixed deck seed
 

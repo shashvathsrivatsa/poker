@@ -21,7 +21,8 @@ pub struct State {
 
 impl State {
     pub fn create(players: usize) -> Self {
-        let dealer = thread_rng().gen_range(0..players);
+        // let dealer = thread_rng().gen_range(0..players);
+        let dealer = 0;            // for replayability
         let big_blind = 20;        // 10/20 game
 
         Self {
@@ -32,7 +33,7 @@ impl State {
             pot: 0,
             dealer, 
             cur_street: Preflop,
-            cur_player: (dealer + 3) % players,    // TODO: not handling 2-player game (i think)
+            cur_player: (dealer + 3) % players,
             cur_alpha: (dealer + 3) % players,
             cur_bet: big_blind,
             cur_raise: big_blind,
@@ -52,8 +53,13 @@ impl State {
             self.cur_bet = player.bet;
         };
 
-        post((self.dealer + 1) % players_len, self.big_blind / 2);
-        post((self.dealer + 2) % players_len, self.big_blind);
+        if players_len == 2 {
+            post((self.dealer + 0) % players_len, self.big_blind / 2);
+            post((self.dealer + 1) % players_len, self.big_blind);
+        } else {
+            post((self.dealer + 1) % players_len, self.big_blind / 2);
+            post((self.dealer + 2) % players_len, self.big_blind);
+        }
 
         // deal hole cards
         self.players.iter_mut().for_each(|p| p.hole_cards[0] = Some(self.deck.draw()));
@@ -103,7 +109,7 @@ impl State {
             // reset cur player & cur alpha
             self.cur_player = self.dealer;
 
-            loop {
+            while self.players.len() > 2 {
                 self.cur_player = (self.cur_player + 1) % self.players.len();
                 if self.players[self.cur_player].hole_cards[0].is_some() { break; }
             }
