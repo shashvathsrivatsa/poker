@@ -16,16 +16,18 @@ pub struct State {
     cur_player: usize,
     cur_alpha: usize,
     cur_bet: usize,
+    cur_raise: usize,
 }
 
 impl State {
     pub fn create(players: usize) -> Self {
         let dealer = thread_rng().gen_range(0..players);
+        let big_blind = 20;        // 10/20 game
 
         Self {
             players: vec![Player::new(1000); players],    // TODO: implement buy-in later
             deck: Deck::new(),
-            big_blind: 20,        // 10/20 game
+            big_blind,
             community_cards: [None; 5],
             pot: 0,
             dealer, 
@@ -33,6 +35,7 @@ impl State {
             cur_player: (dealer + 3) % players,    // TODO: not handling 2-player game (i think)
             cur_alpha: (dealer + 3) % players,
             cur_bet: 0,
+            cur_raise: big_blind,
         }
     }
 
@@ -75,10 +78,11 @@ impl State {
                 // TODO: handle case where he can't afford current bet and needs to go all in (side pot dynamics)
             },
             Raise(bet_total) => {
-                if bet_total <= self.cur_bet { panic!("invalid bet - needs to be > cur bet"); }    // TODO: minimum raise amount
+                if bet_total < self.cur_bet + self.cur_raise { panic!("bet is too small"); }
                 let bet_amount = bet_total - player.bet;
                 player.bet(bet_amount);
                 self.pot += bet_amount;
+                self.cur_raise = bet_total - self.cur_bet;
                 self.cur_bet = player.bet;
                 self.cur_alpha = self.cur_player;
             }
@@ -93,6 +97,7 @@ impl State {
         // next street
         if self.cur_player == self.cur_alpha {
             self.cur_bet = 0;
+            self.cur_raise = self.big_blind;
             self.players.iter_mut().for_each(|p| p.bet = 0);
             self.cur_street.next_street();
 
@@ -119,7 +124,7 @@ impl State {
 
     pub fn table(&self) {
         println!(
-            "{} \nCommunity cards: {} {} {} {} {} \nPot: {} \nCurrent bet: {} \n",
+            "{} \nCommunity cards: {} {} {} {} {} \nPot: {} \nCurrent bet: {} \nMinimum raise: {} \n",
             self.cur_street,
             if let Some(card) = self.community_cards[0] { card.raw() } else { "".to_string() },
             if let Some(card) = self.community_cards[1] { card.raw() } else { "".to_string() },
@@ -128,6 +133,7 @@ impl State {
             if let Some(card) = self.community_cards[4] { card.raw() } else { "".to_string() },
             self.pot,
             self.cur_bet,
+            self.cur_bet + self.cur_raise,
         );
 
         (0..self.players.len()).for_each(|i| {
