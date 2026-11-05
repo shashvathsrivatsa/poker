@@ -1,0 +1,57 @@
+use crate::*;
+
+// ——— Enums ——————————————————————————————————————————————————————————————————————————————————————————————————————————
+
+#[derive(Debug)]
+pub enum Street { Preflop, Flop, Turn, River, Showdown }
+pub use Street::*;
+
+impl Street {
+    pub fn next_street(&mut self) {
+        *self = match self {
+            Preflop => Flop,
+            Flop => Turn,
+            Turn => River,
+            River => Showdown,
+            Showdown => panic!("reset todo"),
+        };
+    }
+}
+
+impl fmt::Display for Street {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Preflop => write!(f, "Preflop"),
+            Flop => write!(f, "Flop"),
+            Turn => write!(f, "Turn"),
+            River => write!(f, "River"),
+            Showdown => write!(f, "Showdown"),
+        }
+    }
+}
+
+pub enum Action { Fold, Call, Raise(usize) }
+pub use Action::*;
+
+
+// ——— Player —————————————————————————————————————————————————————————————————————————————————————————————————————————
+
+#[derive(Debug, Clone, Copy)]
+pub struct Player {
+    pub stack: usize,
+    pub hole_cards: [Option<Card>; 2],
+    pub bet: usize,
+}
+
+impl Player {
+    pub fn new(stack: usize) -> Self {
+        Self { stack, hole_cards: [None, None], bet: 0 }
+    }
+
+    pub fn bet(&mut self, bet_amount: usize) {
+        if self.stack < bet_amount { panic!("cannot afford") }
+        self.stack -= bet_amount;
+        self.bet += bet_amount;
+    }
+}
+

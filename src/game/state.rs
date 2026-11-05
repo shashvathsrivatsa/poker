@@ -25,7 +25,7 @@ impl State {
         let big_blind = 20;        // 10/20 game
 
         Self {
-            players: vec![Player::new(1000); players],    // TODO: implement buy-in later
+            players: vec![Player::new(1000); players],
             deck: Deck::new(),
             big_blind,
             community_cards: [None; 5],
@@ -34,7 +34,7 @@ impl State {
             cur_street: Preflop,
             cur_player: (dealer + 3) % players,    // TODO: not handling 2-player game (i think)
             cur_alpha: (dealer + 3) % players,
-            cur_bet: 0,
+            cur_bet: big_blind,
             cur_raise: big_blind,
         }
     }
@@ -54,7 +54,6 @@ impl State {
 
         post((self.dealer + 1) % players_len, self.big_blind / 2);
         post((self.dealer + 2) % players_len, self.big_blind);
-        self.cur_bet = self.big_blind;
 
         // deal hole cards
         self.players.iter_mut().for_each(|p| p.hole_cards[0] = Some(self.deck.draw()));
@@ -155,62 +154,6 @@ impl State {
                 p.stack,
             );
         });
-    }
-}
-
-
-// ——— Enums ——————————————————————————————————————————————————————————————————————————————————————————————————————————
-
-#[derive(Debug)]
-pub enum Street { Preflop, Flop, Turn, River, Showdown }
-pub use Street::*;
-
-impl Street {
-    pub fn next_street(&mut self) {
-        *self = match self {
-            Preflop => Flop,
-            Flop => Turn,
-            Turn => River,
-            River => Showdown,
-            Showdown => panic!("reset todo"),
-        };
-    }
-}
-
-impl fmt::Display for Street {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Preflop => write!(f, "Preflop"),
-            Flop => write!(f, "Flop"),
-            Turn => write!(f, "Turn"),
-            River => write!(f, "River"),
-            Showdown => write!(f, "Showdown"),
-        }
-    }
-}
-
-pub enum Action { Fold, Call, Raise(usize) }
-pub use Action::*;
-
-
-// ——— Player —————————————————————————————————————————————————————————————————————————————————————————————————————————
-
-#[derive(Debug, Clone, Copy)]
-pub struct Player {
-    pub stack: usize,
-    pub hole_cards: [Option<Card>; 2],
-    pub bet: usize,
-}
-
-impl Player {
-    fn new(stack: usize) -> Self {
-        Self { stack, hole_cards: [None, None], bet: 0 }
-    }
-
-    fn bet(&mut self, bet_amount: usize) {
-        if self.stack < bet_amount { panic!("cannot afford") }
-        self.stack -= bet_amount;
-        self.bet += bet_amount;
     }
 }
 
