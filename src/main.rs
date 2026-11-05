@@ -3,14 +3,36 @@ use poker_bot::*;
 // ——— Main ———————————————————————————————————————————————————————————————————————————————————————————————————————————
 
 fn main() {
-    let mut state = State::new(5);
-    state.step(Call);
-    state.step(Call);
-    state.step(Call);
-    state.step(Bet(30));
-    state.step(Call);
-    state.step(Call);
-    state.step(Fold);
-    state.step(Call);
+    let mut state = State::create(5);
+    state.start();
+
+    state.turn(Call);
+    state.turn(Call);
+    state.turn(Call);
+    state.turn(Call);
+    state.turn(Call);
+
+    state.turn(Call);
+    state.turn(Raise(20));
+    state.turn(Call);
+    state.turn(Call);
+    state.turn(Call);
+    state.turn(Call);
+
+    state.turn(Raise(20));
+    state.turn(Call);
+    state.turn(Call);
+    state.turn(Call);
+    state.turn(Call);
+
+    state.turn(Raise(20));
+    state.turn(Call);
+    state.turn(Call);
+    state.turn(Call);
+    state.turn(Raise(40));
+    state.turn(Call);
+    state.turn(Call);
+    state.turn(Call);
+
     state.table();
 }

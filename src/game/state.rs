@@ -19,7 +19,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(players: usize) -> Self {
+    pub fn create(players: usize) -> Self {
         let dealer = thread_rng().gen_range(0..players);
 
         Self {
@@ -36,46 +36,36 @@ impl State {
         }
     }
 
-    pub fn step(&mut self, action: Action) {
-        match self.cur_street {
-            Preflop => {
-                if self.cur_bet == 0 {
-                    self.deck.shuffle();
+    pub fn start(&mut self) {
+        self.deck.shuffle();
 
-                    // bb / sb post blind
-                    let players_len = self.players.len();
+        // bb / sb post blind
+        let players_len = self.players.len();
 
-                    let mut post = |player_idx: usize, bet_amount: usize| {
-                        let player = &mut self.players[player_idx];
-                        player.bet(bet_amount);
-                        self.pot += bet_amount;
-                        self.cur_bet = player.bet;
-                    };
+        let mut post = |player_idx: usize, bet_amount: usize| {
+            let player = &mut self.players[player_idx];
+            player.bet(bet_amount);
+            self.pot += bet_amount;
+            self.cur_bet = player.bet;
+        };
 
-                    post((self.dealer + 1) % players_len, self.big_blind / 2);
-                    post((self.dealer + 2) % players_len, self.big_blind);
-                    self.cur_bet = self.big_blind;
+        post((self.dealer + 1) % players_len, self.big_blind / 2);
+        post((self.dealer + 2) % players_len, self.big_blind);
+        self.cur_bet = self.big_blind;
 
-                    // deal hole cards
-                    self.players.iter_mut().for_each(|p| p.hole_cards[0] = Some(self.deck.draw()));
-                    self.players.iter_mut().for_each(|p| p.hole_cards[1] = Some(self.deck.draw()));
-                }
-
-                // current player turn
-                self.turn(self.cur_player, action);
-            },
-            _ => panic!("todo"),
-        }
+        // deal hole cards
+        self.players.iter_mut().for_each(|p| p.hole_cards[0] = Some(self.deck.draw()));
+        self.players.iter_mut().for_each(|p| p.hole_cards[1] = Some(self.deck.draw()));
     }
 
-    fn turn(&mut self, player_idx: usize, action: Action) {
-        let player = &mut self.players[player_idx];
+    pub fn turn(&mut self, action: Action) {
+        let player = &mut self.players[self.cur_player];
 
         match action {
             Fold => {
                 player.hole_cards = [None, None];
                 if self.players.iter().filter(|player| player.hole_cards[0].is_some()).count() == 1 {
-                     // TODO: win condition (last remaining player wins)
+                    // TODO: win condition (last remaining player wins)
                 }
             },
             Call => {
@@ -84,7 +74,7 @@ impl State {
                 self.pot += bet_amount;
                 // TODO: handle case where he can't afford current bet and needs to go all in (side pot dynamics)
             },
-            Bet(bet_total) => {
+            Raise(bet_total) => {
                 if bet_total <= self.cur_bet { panic!("invalid bet - needs to be > cur bet"); }    // TODO: minimum raise amount
                 let bet_amount = bet_total - player.bet;
                 player.bet(bet_amount);
@@ -121,6 +111,7 @@ impl State {
                 Flop => (0..3).for_each(|i| self.community_cards[i] = Some(self.deck.draw())),
                 Turn => self.community_cards[3] = Some(self.deck.draw()),
                 River => self.community_cards[4] = Some(self.deck.draw()),
+                Showdown => panic!("game is done"),
                 _ => panic!("cannot fill that street"),
             }
         }
@@ -192,7 +183,7 @@ impl fmt::Display for Street {
     }
 }
 
-pub enum Action { Fold, Call, Bet(usize) }
+pub enum Action { Fold, Call, Raise(usize) }
 pub use Action::*;
 
 
