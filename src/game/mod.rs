@@ -7,6 +7,6 @@ pub use state_helpers::*;
 pub mod primitives;
 pub use primitives::*;
 
-pub mod hand_strength;
-pub use hand_strength::*;
+pub mod hand_rank;
+pub use hand_rank::*;
 

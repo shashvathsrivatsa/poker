@@ -1,6 +1,6 @@
 use crate::*;
 
-// ——— Hand Strength ——————————————————————————————————————————————————————————————————————————————————————————————————
+// ——— Hand Rank ——————————————————————————————————————————————————————————————————————————————————————————————————————
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[allow(dead_code)]
@@ -18,7 +18,7 @@ pub enum HandRank {
 }
 pub use HandRank::*;
 
-pub fn hs(hole_cards: &[Option<Card>], community_cards: &[Option<Card>]) -> HandRank {
+pub fn hand_rank(hole_cards: &[Option<Card>; 5], community_cards: &[Option<Card>; 2]) -> HandRank {
     let cards = community_cards.iter().chain(hole_cards.iter()).collect::<Vec<_>>();
 
     let rhs = |cards: Vec<Card>| -> HandRank {
@@ -64,11 +64,9 @@ pub fn hs(hole_cards: &[Option<Card>], community_cards: &[Option<Card>]) -> Hand
         .map(|mut hand| {
             let mut hand: Vec<Card> = hand.iter_mut().map(|card| card.unwrap()).collect();
             hand.sort();
-            println!("{hand:?}");
             rhs(hand)
         })
         .sorted_by(|a, b| b.cmp(a))
         .next().unwrap()
 }
-
 
