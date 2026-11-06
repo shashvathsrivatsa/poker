@@ -75,14 +75,16 @@ impl State {
             Fold => {
                 player.hole_cards = [None, None];
                 if self.players.iter().filter(|player| player.hole_cards[0].is_some()).count() == 1 {
-                    // TODO: win condition (last remaining player wins)
+                    self.community_cards.iter_mut().filter(|card| card.is_none()).for_each(|card| *card = Some(self.deck.draw()));
+                    self.cur_street = Showdown;
+                    self.showdown();
+                    return;
                 }
             },
             Call => {
                 let bet_amount = self.cur_bet - player.bet;
                 player.bet(bet_amount);
                 self.pot += bet_amount;
-                // TODO: handle case where he can't afford current bet and needs to go all in (side pot dynamics)
             },
             Raise(bet_total) => {
                 if bet_total < self.cur_bet + self.cur_raise { panic!("bet is too small"); }
@@ -92,8 +94,12 @@ impl State {
                 self.cur_raise = bet_total - self.cur_bet;
                 self.cur_bet = player.bet;
                 self.cur_alpha = self.cur_player;
+            },
+            AllIn => {
+
+                // TODO: side pot dynamics
                 // TODO: if all players go all in, then game ends
-            }
+            },
         }
 
         // next player
@@ -125,16 +131,19 @@ impl State {
                 Flop => (0..3).for_each(|i| self.community_cards[i] = Some(self.deck.draw())),
                 Turn => self.community_cards[3] = Some(self.deck.draw()),
                 River => self.community_cards[4] = Some(self.deck.draw()),
-                Showdown => {
-                    let winner: &mut Player = self.players.iter_mut()
-                        .sorted_by(|p1, p2| hand_rank(&p2.hole_cards, &self.community_cards).cmp(&hand_rank(&p1.hole_cards, &self.community_cards)))
-                        .next().unwrap();
-
-                    winner.stack += self.pot;
-                    self.pot = 0;
-                }
+                Showdown => self.showdown(),
             }
         }
+    }
+
+    fn showdown(&mut self) {
+        let winner: &mut Player = self.players.iter_mut()
+            .sorted_by(|p1, p2| hand_rank(&p2.hole_cards, &self.community_cards).cmp(&hand_rank(&p1.hole_cards, &self.community_cards)))
+            .next().unwrap();
+
+        winner.stack += self.pot;
+        self.pot = 0;
+
     }
 
     pub fn table(&self) {
@@ -166,7 +175,7 @@ impl State {
                 cur_alpha_text,
                 if let Some(card) = p.hole_cards[0] { card.raw() } else { "X".to_string() },
                 if let Some(card) = p.hole_cards[1] { card.raw() } else { "X".to_string() },
-                if self.cur_street == Preflop { "".to_string() } else { format!("{:?}\n", hand_rank(&p.hole_cards, &self.community_cards)) },
+                if let Some(h) = hand_rank(&p.hole_cards, &self.community_cards) { format!("{h:?}\n", ) } else { "".to_string() },
                 p.bet,
                 p.stack,
             );

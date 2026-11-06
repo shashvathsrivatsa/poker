@@ -22,7 +22,7 @@ pub use HandRank::*;
 
 // ——— Algorithm ——————————————————————————————————————————————————————————————————————————————————————————————————————
 
-pub fn hand_rank(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -> HandRank {
+pub fn hand_rank(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -> Option<HandRank> {
     let cards = community_cards.iter().chain(hole_cards.iter()).collect::<Vec<_>>();
 
     let rhs = |cards: Vec<Card>| -> HandRank {
@@ -71,6 +71,6 @@ pub fn hand_rank(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>
             rhs(hand)
         })
         .sorted_by(|a, b| b.cmp(a))
-        .next().unwrap()
+        .next()
 }
 

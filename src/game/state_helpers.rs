@@ -30,7 +30,7 @@ impl Display for Street {
     }
 }
 
-pub enum Action { Fold, Call, Raise(usize) }
+pub enum Action { Fold, Call, Raise(usize), AllIn }
 pub use Action::*;
 
 

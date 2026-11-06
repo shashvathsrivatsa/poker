@@ -13,11 +13,7 @@ fn main() {
     state.turn(Call);
 
     state.turn(Raise(30));
-    state.turn(Call);
-
-    state.turn(Call);
-    state.turn(Raise(60));
-    state.turn(Call);
+    state.turn(Fold);
 
     state.table();
 }
