@@ -96,9 +96,19 @@ impl State {
                 self.cur_alpha = self.cur_player;
             },
             AllIn => {
+                let all_in_amount = player.stack;
+                player.all_in();
+                self.pot += all_in_amount;
+                
+                if all_in_amount - self.cur_bet >= self.cur_raise {
+                    self.cur_raise = all_in_amount - self.cur_bet;
+                    self.cur_alpha = self.cur_player;
+                }
+
+                self.cur_bet = usize::max(player.bet, self.cur_bet);
 
                 // TODO: side pot dynamics
-                // TODO: if all players go all in, then game ends
+                // TODO: if all players go all in, then game short circuits
             },
         }
 
@@ -137,13 +147,31 @@ impl State {
     }
 
     fn showdown(&mut self) {
-        let winner: &mut Player = self.players.iter_mut()
-            .sorted_by(|p1, p2| hand_rank(&p2.hole_cards, &self.community_cards).cmp(&hand_rank(&p1.hole_cards, &self.community_cards)))
-            .next().unwrap();
+        let rankings: Vec<usize> = self.players.iter_mut().enumerate()
+            .filter(|(_, player)| player.hole_cards[0].is_some())
+            .sorted_by(|(_, p1), (_, p2)| {
+                let p2_rank = hand_rank(&p2.hole_cards, &self.community_cards);
+                let p1_rank = hand_rank(&p1.hole_cards, &self.community_cards);
+                p2_rank.cmp(&p1_rank)
+            })
+            .map(|(i, _)| i)
+            .collect();
 
-        winner.stack += self.pot;
+        for &i in rankings.iter() {
+            let winner_stake = self.players[i].stake;
+
+            let winner_win_amount = self.players.iter_mut().enumerate()
+                .filter(|&(j, _)| i != j)
+                .fold(0, |acc, (_, player)| {
+                    let rinse_amount = usize::min(player.stake, winner_stake);
+                    player.stake -= rinse_amount;
+                    acc + rinse_amount
+                });
+
+            self.players[i].stack += winner_win_amount + self.players[i].stake;
+        }
+
         self.pot = 0;
-
     }
 
     pub fn table(&self) {
@@ -162,7 +190,7 @@ impl State {
 
         (0..self.players.len()).for_each(|i| {
             let c = (self.dealer + i) % self.players.len();
-            let p = self.players[c];
+            let p = &self.players[c];
             let cur_player_text = if self.cur_player == c { "(cur)" } else { "" };
             let cur_alpha_text = if self.cur_alpha == c { "(alpha)" } else { "" };
             let space = if self.cur_player == c && self.cur_alpha == c { " " } else { "" };

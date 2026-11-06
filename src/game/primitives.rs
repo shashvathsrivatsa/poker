@@ -93,6 +93,10 @@ impl Card {
 
         format!("{rank}{suit}")
     }
+
+    pub fn strictly_eq(&self, other: &Card) -> bool {
+        return self.rank == other.rank && self.suit == other.suit
+    }
 }
 
 
