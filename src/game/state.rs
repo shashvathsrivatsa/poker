@@ -159,14 +159,14 @@ impl State {
             let space = if self.cur_player == c && self.cur_alpha == c { " " } else { "" };
 
             println!(
-                "Player {} {}{}{} \nHole cards: {} {} \n{:?} \nBet: {} \nStack: {} \n",
+                "Player {} {}{}{} \nHole cards: {} {} \n{}Bet: {} \nStack: {} \n",
                 i,
                 cur_player_text,
                 space,
                 cur_alpha_text,
                 if let Some(card) = p.hole_cards[0] { card.raw() } else { "X".to_string() },
                 if let Some(card) = p.hole_cards[1] { card.raw() } else { "X".to_string() },
-                hand_rank(&p.hole_cards, &self.community_cards),
+                if self.cur_street == Preflop { "".to_string() } else { format!("{:?}\n", hand_rank(&p.hole_cards, &self.community_cards)) },
                 p.bet,
                 p.stack,
             );

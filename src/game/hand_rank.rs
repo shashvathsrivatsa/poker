@@ -16,7 +16,11 @@ pub enum HandRank {
     StraightFlush(Rank),            // highest card
     RoyalFlush,                     // nothing to be said here
 }
+
 pub use HandRank::*;
+
+
+// ——— Algorithm ——————————————————————————————————————————————————————————————————————————————————————————————————————
 
 pub fn hand_rank(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -> HandRank {
     let cards = community_cards.iter().chain(hole_cards.iter()).collect::<Vec<_>>();
