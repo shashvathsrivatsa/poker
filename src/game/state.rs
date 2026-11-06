@@ -24,6 +24,7 @@ impl State {
         // let dealer = thread_rng().gen_range(0..players);
         let dealer = 0;            // for replayability
         let big_blind = 20;        // 10/20 game
+        let cur_player = if players == 2 { 0 } else { (dealer + 3) % players };
 
         Self {
             players: vec![Player::new(1000); players],
@@ -33,8 +34,8 @@ impl State {
             pot: 0,
             dealer, 
             cur_street: Preflop,
-            cur_player: (dealer + 3) % players,
-            cur_alpha: (dealer + 3) % players,
+            cur_player,
+            cur_alpha: cur_player,
             cur_bet: big_blind,
             cur_raise: big_blind,
         }
@@ -43,7 +44,7 @@ impl State {
     pub fn start(&mut self) {
         self.deck.shuffle();
 
-        // bb / sb post blind
+        // posting blinds
         let players_len = self.players.len();
 
         let mut post = |player_idx: usize, bet_amount: usize| {
@@ -125,7 +126,7 @@ impl State {
             // reset cur player & cur alpha
             self.cur_player = self.dealer;
 
-            while self.players.len() > 2 {
+            loop {
                 self.cur_player = (self.cur_player + 1) % self.players.len();
                 if self.players[self.cur_player].hole_cards[0].is_some() { break; }
             }
