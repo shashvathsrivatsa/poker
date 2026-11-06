@@ -9,6 +9,15 @@ fn main() {
     state.turn(Call);
     state.turn(Call);
 
+    state.turn(Call);
+    state.turn(Call);
+
+    state.turn(Call);
+    state.turn(Call);
+
+    state.turn(Call);
+    state.turn(Call);
+
     state.table();
 }
 

@@ -67,6 +67,8 @@ impl State {
     }
 
     pub fn turn(&mut self, action: Action) {
+        if self.cur_street == Showdown { panic!("game is over"); }
+
         let player = &mut self.players[self.cur_player];
 
         match action {
@@ -117,13 +119,20 @@ impl State {
 
             self.cur_alpha = self.cur_player;
 
-            // fill community cards
+            // prep for next street
             match self.cur_street {
+                Preflop => panic!("not reachable (nothing before preflop)"),
                 Flop => (0..3).for_each(|i| self.community_cards[i] = Some(self.deck.draw())),
                 Turn => self.community_cards[3] = Some(self.deck.draw()),
                 River => self.community_cards[4] = Some(self.deck.draw()),
-                Showdown => panic!("game is done"),
-                _ => panic!("cannot fill that street"),
+                Showdown => {
+                    let winner: &mut Player = self.players.iter_mut()
+                        .sorted_by(|p1, p2| hand_rank(&p2.hole_cards, &self.community_cards).cmp(&hand_rank(&p1.hole_cards, &self.community_cards)))
+                        .next().unwrap();
+
+                    winner.stack += self.pot;
+                    self.pot = 0;
+                }
             }
         }
     }
@@ -157,7 +166,7 @@ impl State {
                 cur_alpha_text,
                 if let Some(card) = p.hole_cards[0] { card.raw() } else { "X".to_string() },
                 if let Some(card) = p.hole_cards[1] { card.raw() } else { "X".to_string() },
-                hand_rank(&self.community_cards, &p.hole_cards),
+                hand_rank(&p.hole_cards, &self.community_cards),
                 p.bet,
                 p.stack,
             );

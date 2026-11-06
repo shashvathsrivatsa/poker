@@ -2,7 +2,7 @@ use crate::*;
 
 // ——— Enums ——————————————————————————————————————————————————————————————————————————————————————————————————————————
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Street { Preflop, Flop, Turn, River, Showdown }
 pub use Street::*;
 

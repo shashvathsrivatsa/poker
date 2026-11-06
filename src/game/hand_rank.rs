@@ -18,7 +18,7 @@ pub enum HandRank {
 }
 pub use HandRank::*;
 
-pub fn hand_rank(hole_cards: &[Option<Card>; 5], community_cards: &[Option<Card>; 2]) -> HandRank {
+pub fn hand_rank(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -> HandRank {
     let cards = community_cards.iter().chain(hole_cards.iter()).collect::<Vec<_>>();
 
     let rhs = |cards: Vec<Card>| -> HandRank {
