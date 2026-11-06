@@ -129,5 +129,9 @@ impl Deck {
             None => panic!("out of cards"),
         }
     }
+
+    pub fn burn(&mut self) {
+        self.draw_pile.pop();
+    }
 }
 

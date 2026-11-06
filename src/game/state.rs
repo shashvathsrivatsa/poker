@@ -75,9 +75,7 @@ impl State {
             Fold => {
                 player.hole_cards = [None, None];
                 if self.players.iter().filter(|player| player.hole_cards[0].is_some()).count() == 1 {
-                    self.community_cards.iter_mut().filter(|card| card.is_none()).for_each(|card| *card = Some(self.deck.draw()));
-                    self.cur_street = Showdown;
-                    self.showdown();
+                    self.showdown(true);
                     return;
                 }
             },
@@ -107,8 +105,7 @@ impl State {
 
                 self.cur_bet = usize::max(player.bet, self.cur_bet);
 
-                // TODO: side pot dynamics
-                // TODO: if all players go all in, then game short circuits
+                if self.players.iter().all(|player| player.stack == 0) { self.showdown(true); }
             },
         }
 
@@ -138,15 +135,35 @@ impl State {
             // prep for next street
             match self.cur_street {
                 Preflop => panic!("not reachable (nothing before preflop)"),
-                Flop => (0..3).for_each(|i| self.community_cards[i] = Some(self.deck.draw())),
-                Turn => self.community_cards[3] = Some(self.deck.draw()),
-                River => self.community_cards[4] = Some(self.deck.draw()),
-                Showdown => self.showdown(),
+                Flop => {
+                    self.deck.burn();
+                    (0..3).for_each(|i| self.community_cards[i] = Some(self.deck.draw()));
+                },
+                Turn => {
+                    self.deck.burn();
+                    self.community_cards[3] = Some(self.deck.draw());
+                },
+                River => {
+                    self.deck.burn();
+                    self.community_cards[4] = Some(self.deck.draw());
+                },
+                Showdown => self.showdown(false),
             }
         }
     }
 
-    fn showdown(&mut self) {
+    fn showdown(&mut self, early: bool) {
+        if early {
+            self.community_cards.iter_mut().enumerate()
+                .filter(|(_, card)| card.is_none())
+                .for_each(|(i, card)| {
+                    if i == 0 || i == 3 || i == 4 { self.deck.burn(); }
+                    *card = Some(self.deck.draw())
+                });
+
+            self.cur_street = Showdown;
+        }
+
         let rankings: Vec<usize> = self.players.iter_mut().enumerate()
             .filter(|(_, player)| player.hole_cards[0].is_some())
             .sorted_by(|(_, p1), (_, p2)| {
