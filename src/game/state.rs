@@ -4,15 +4,15 @@ use crate::*;
 
 #[derive(Debug)]
 pub struct State {
-    pub players: Vec<Player>,
-    pub deck: Deck,
-    pub big_blind: usize,
+    players: Vec<Player>,                  // game-scope
+    deck: Deck,
+    big_blind: usize,
 
-    pub community_cards: [Option<Card>; 5],
+    community_cards: [Option<Card>; 5],    // hand-scope
     pot: usize,
     dealer: usize,
 
-    cur_street: Street,
+    cur_street: Street,                    // street-scope
     cur_player: usize,
     cur_alpha: usize,
     cur_bet: usize,
@@ -20,15 +20,15 @@ pub struct State {
 }
 
 impl State {
-    pub fn create(players: usize) -> Self {
+    fn create_std(players: usize, deck: Deck) -> Self {
         // let dealer = thread_rng().gen_range(0..players);
-        let dealer = 0;            // for replayability
-        let big_blind = 20;        // 10/20 game
+        let dealer = 0;
+        let big_blind = 200;
         let cur_player = if players == 2 { 0 } else { (dealer + 3) % players };
 
         Self {
             players: vec![Player::new(1000); players],
-            deck: Deck::new(),
+            deck,
             big_blind,
             community_cards: [None; 5],
             pot: 0,
@@ -39,10 +39,20 @@ impl State {
             cur_bet: big_blind,
             cur_raise: big_blind,
         }
+
+    }
+
+    pub fn create(players: usize) -> Self {
+        let mut deck = Deck::new();
+        deck.shuffle();
+        State::create_std(players, deck)
+    }
+
+    pub fn create_sim(players: usize) -> Self {
+        State::create_std(players, Deck::from_sim())
     }
 
     pub fn start(&mut self) {
-        self.deck.shuffle();
 
         // posting blinds
         let players_len = self.players.len();

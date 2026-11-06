@@ -118,6 +118,59 @@ impl Deck {
         Self { draw_pile }
     }
 
+    pub fn from_sim() -> Self {
+        let file = File::open("sim.txt").unwrap();
+        let reader = BufReader::new(file);
+        let mut deck = Deck::new();
+
+        let cards_parsed: Vec<Card> = reader.lines()
+            .map(|line| line.unwrap())
+            .filter(|line| !line.is_empty())
+            .map(|line| {
+                let mut line = line.chars();
+                let (r, s) = (line.next().unwrap(), line.next().unwrap());
+                if r == '?' { return None };
+                
+                let rank = match r {
+                    '2' => Two,
+                    '3' => Three,
+                    '4' => Four,
+                    '5' => Five,
+                    '6' => Six,
+                    '7' => Seven,
+                    '8' => Eight,
+                    '9' => Nine,
+                    '0' => Ten,
+                    'a' | 'A' => Ace,
+                    'j' | 'J' => Jack,
+                    'q' | 'Q' => Queen,
+                    'k' | 'K' => King,
+                    _ => panic!("error parsing rank txt")
+                };
+
+                let suit = match s {
+                    'c' | 'C' => Clubs,
+                    'd' | 'D' => Diamonds,
+                    'h' | 'H' => Hearts,
+                    's' | 'S' => Spades,
+                    _ => panic!("error parsing suit in txt")
+                };
+
+                Some(Card::new(rank, suit))
+            })
+            .map(|card| {
+                match card {
+                    Some(card) => deck.pick_out(card),
+                    None => deck.draw()
+                }
+            })
+            .collect();
+
+        deck.draw_pile = deck.draw_pile.into_iter().chain(cards_parsed.into_iter().rev()).collect();
+
+        deck
+    }
+
     pub fn shuffle(&mut self) {
         let mut rng = StdRng::seed_from_u64(1);
         self.draw_pile.shuffle(&mut rng);
@@ -132,6 +185,11 @@ impl Deck {
 
     pub fn burn(&mut self) {
         self.draw_pile.pop();
+    }
+
+    pub fn pick_out(&mut self, target: Card) -> Card {
+        self.draw_pile.retain(|&card| card != target);
+        target
     }
 }
 
