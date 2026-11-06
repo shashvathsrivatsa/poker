@@ -8,7 +8,7 @@ pub struct State {
     pub deck: Deck,
     pub big_blind: usize,
 
-    community_cards: [Option<Card>; 5],
+    pub community_cards: [Option<Card>; 5],
     pot: usize,
     dealer: usize,
 
@@ -90,6 +90,7 @@ impl State {
                 self.cur_raise = bet_total - self.cur_bet;
                 self.cur_bet = player.bet;
                 self.cur_alpha = self.cur_player;
+                // TODO: if all players go all in, then game ends
             }
         }
 

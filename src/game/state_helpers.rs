@@ -18,8 +18,8 @@ impl Street {
     }
 }
 
-impl fmt::Display for Street {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Street {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
             Preflop => write!(f, "Preflop"),
             Flop => write!(f, "Flop"),

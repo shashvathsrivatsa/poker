@@ -2,21 +2,60 @@ use crate::*;
 
 // ——— Primitves ——————————————————————————————————————————————————————————————————————————————————————————————————————
 
-#[derive(Debug, Clone, Copy)]
-pub enum Rank { Ace, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Rank { Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King, Ace }
 pub use Rank::*;
 
-#[derive(Debug, Clone, Copy)]
+impl Rank {
+    pub fn next(&self) -> Rank {
+        match self {
+            Two => Three,
+            Three => Four,
+            Four => Five,
+            Five => Six,
+            Six => Seven,
+            Seven => Eight,
+            Eight => Nine,
+            Nine => Ten,
+            Ten => Jack,
+            Jack => Queen,
+            Queen => King,
+            King => Ace,
+            Ace => panic!("nothing higher than ace"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Suit { Clubs, Diamonds, Hearts, Spades }
 pub use Suit::*;
 
 
 // ——— Card ——————————————————————————————————————————————————————————————————————————————————————————————————————
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialOrd)]
 pub struct Card {
     pub rank: Rank,
     pub suit: Suit,
+}
+
+impl PartialEq for Card {
+    fn eq(&self, other: &Self) -> bool {
+        self.rank == other.rank
+    }
+}
+
+impl Ord for Card {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.rank.cmp(&other.rank)
+    }
+}
+
+
+impl Debug for Card {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.raw())
+    }
 }
 
 impl Card {
@@ -76,7 +115,7 @@ impl Deck {
     }
 
     pub fn shuffle(&mut self) {
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = StdRng::seed_from_u64(0);
         self.draw_pile.shuffle(&mut rng);
     }
 
