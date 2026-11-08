@@ -1,15 +1,14 @@
 use crate::*;
 
-// ——— HS —————————————————————————————————————————————————————————————————————————————————————————————————————————————
+// ——— Full Hand Strength —————————————————————————————————————————————————————————————————————————————————————————————
 
 // NOTE: could add folded cards to incorporate more information
-pub fn hs(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -> f64 {
+pub fn fhs(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -> f64 {
 
     // find remaining cards (assuming fresh deck)
     let mut cards_seen: Vec<Card> = Vec::with_capacity(52);
     hole_cards.iter().for_each(|&c| cards_seen.push(c.unwrap()));
     community_cards.iter().filter(|c| c.is_some()).for_each(|&c| cards_seen.push(c.unwrap()));
-    let num_of_known_cards = cards_seen.len();
 
     let mut deck_temp = Deck::new();
     cards_seen.iter().for_each(|&c| { deck_temp.pick_out(c); });
@@ -21,12 +20,12 @@ pub fn hs(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -
         .collect();
 
     // add all future hand cards possibilities
-    let all_future_posibilities: Vec<([Card; 2], [Card; 5])> = match community_cards.iter().filter(|c| c.is_some()).count() {
+    let all_possible_outcomes = match community_cards.iter().filter(|c| c.is_some()).count() {
 
         // Turn & River
         // C(47, 2) * C(45, 1) * C(44, 1)
         3 => {
-            let mut x: Vec<([Card; 2], [Card; 5])> = Vec::with_capacity(opp_hole_cards.len() * 45 * 44);
+            let mut all_possible_outcomes: Vec<([Card; 2], [Card; 5])> = Vec::with_capacity(opp_hole_cards.len() * 45 * 44);
 
             for opp_hole_cards in opp_hole_cards.iter() {
                 let cards_unknown_iter = cards_unknown.iter().filter(|&c| {
@@ -39,7 +38,7 @@ pub fn hs(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -
                     });
 
                     for &river in cards_unknown_iter {
-                        x.push((
+                        all_possible_outcomes.push((
                             [ opp_hole_cards[0], opp_hole_cards[1] ],
                             [
                                 community_cards[0].unwrap(),
@@ -53,13 +52,13 @@ pub fn hs(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -
                 }
             }
 
-            x
+            all_possible_outcomes
         },
 
         // River
         // C(47, 2) * C(45, 1)
         4 => {
-            let mut x: Vec<([Card; 2], [Card; 5])> = Vec::with_capacity(opp_hole_cards.len() * 45);
+            let mut all_possible_outcomes: Vec<([Card; 2], [Card; 5])> = Vec::with_capacity(opp_hole_cards.len() * 45);
 
             for opp_hole_cards in opp_hole_cards.iter() {
                 let cards_unknown_iter = cards_unknown.iter().filter(|&c| {
@@ -67,7 +66,7 @@ pub fn hs(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -
                 });
 
                 for &river in cards_unknown_iter {
-                    x.push((
+                    all_possible_outcomes.push((
                         [ opp_hole_cards[0], opp_hole_cards[1] ],
                         [
                             community_cards[0].unwrap(),
@@ -80,7 +79,7 @@ pub fn hs(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -
                 }
             }
 
-            x
+            all_possible_outcomes
         },
 
         // None
@@ -104,9 +103,9 @@ pub fn hs(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -
 
 
     // for each combination, calculate their hand rank
-    println!("Total future possibilities: {}", all_future_posibilities.len().separate_with_commas());
+    println!("Total possible outcomes: {}", all_possible_outcomes.len().separate_with_commas());
 
-    let opp_ranks: Vec<HandRank> = all_future_posibilities.iter()
+    let opp_ranks: Vec<HandRank> = all_possible_outcomes.iter()
         .map(|(opp_hole_cards, future_community_cards)| hand_rank_all(opp_hole_cards, future_community_cards))
         .collect();
 

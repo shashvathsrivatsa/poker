@@ -14,20 +14,7 @@ fn main() {
 
     state.table();
 
-    let hole_cards = [
-        Card::new(Ace, Clubs),
-        Card::new(Queen, Clubs),
-    ];
-
-    let community_cards = [
-        Card::new(Jack, Clubs),
-        Card::new(Ten, Clubs),
-        Card::new(Jack, Spades),
-        Card::new(King, Clubs),
-        Card::new(Ace, Diamonds),
-    ];
-
-    let hs = hs(&state.players[0].hole_cards, &state.community_cards);
-    println!("{}", hs.percent());
+    let fhs = fhs(&state.players[0].hole_cards, &state.community_cards);
+    println!("{}", fhs.percent());
 }
 
