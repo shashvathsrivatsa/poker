@@ -188,7 +188,7 @@ impl Deck {
     }
 
     pub fn pick_out(&mut self, target: Card) -> Card {
-        self.draw_pile.retain(|&card| card != target);
+        self.draw_pile.retain(|&card| !card.strictly_eq(&target));
         target
     }
 }

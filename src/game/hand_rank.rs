@@ -2,7 +2,7 @@ use crate::*;
 
 // ——— Hand Rank ——————————————————————————————————————————————————————————————————————————————————————————————————————
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[allow(dead_code)]
 pub enum HandRank {
     HighCard([Rank; 5]),            // top 5 high cards
@@ -17,20 +17,37 @@ pub enum HandRank {
     RoyalFlush,                     // nothing to be said here
 }
 
+impl HandRank {
+    pub fn value(&self) -> usize {
+        match self {
+            HighCard(_)        => 1,
+            OnePair(_, _)      => 2,
+            TwoPair(_, _, _)   => 3,
+            ThreeOfAKind(_, _) => 4,
+            Straight(_)        => 5,
+            Flush(_)           => 6,
+            FullHouse(_, _)    => 7,
+            FourOfAKind(_, _)  => 8,
+            StraightFlush(_)   => 9,
+            RoyalFlush         => 0,
+        }
+    }
+}
+
 pub use HandRank::*;
 
 
 // ——— Algorithm ——————————————————————————————————————————————————————————————————————————————————————————————————————
 
-pub fn hand_rank(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -> Option<HandRank> {
-    let cards = community_cards.iter().chain(hole_cards.iter()).collect::<Vec<_>>();
+fn hand_rank(cards: Vec<Card>) -> HandRank {
+    let rhr = |mut cards: Vec<Card>| -> HandRank {
+        cards.sort();
 
-    let rhs = |cards: Vec<Card>| -> HandRank {
         let (pairs, trips, quads, straight, flush): (Vec<usize>, Vec<usize>, Vec<usize>, bool, bool) = (
             cards.windows(2).enumerate().filter(|(_, window)| window[0] == window[1]).map(|(i, _)| i).collect(),
             cards.windows(3).enumerate().filter(|(_, window)| window.windows(2).all(|w| w[0] == w[1])).map(|(i, _)| i).collect(),
             cards.windows(4).enumerate().filter(|(_, window)| window.windows(2).all(|w| w[0] == w[1])).map(|(i, _)| i).collect(),
-            cards.windows(2).all(|w| w[0].rank.next() == w[1].rank) ||
+            cards[0].rank < Jack && cards.windows(2).all(|w| w[0].rank.next() == w[1].rank) ||
             (cards.windows(2).take(3).all(|w| w[0].rank.next() == w[1].rank) && cards[0].rank == Two && cards[4].rank == Ace),        // ace low straight
             cards.windows(2).all(|w| w[0].suit == w[1].suit),
         );
@@ -63,14 +80,31 @@ pub fn hand_rank(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>
 
     };
 
-    cards.iter().combinations(5)
-        .filter(|hand| hand.iter().all(|card| card.is_some()))
-        .map(|mut hand| {
-            let mut hand: Vec<Card> = hand.iter_mut().map(|card| card.unwrap()).collect();
-            hand.sort();
-            rhs(hand)
-        })
+    cards.into_iter().combinations(5)
+        .map(|hand| rhr(hand))
         .sorted_by(|a, b| b.cmp(a))
-        .next()
+        .next().unwrap()
+}
+
+// only some community cards known
+pub fn hand_rank_some(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -> Option<HandRank> {
+    if community_cards.iter().filter(|c| c.is_some()).count() == 0 { return None; }
+
+    let cards: Vec<Card> = community_cards.iter()
+        .filter(|card| card.is_some())
+        .map(|card| card.unwrap())
+        .chain(hole_cards.iter().map(|card| card.unwrap()))
+        .collect();
+
+    Some(hand_rank(cards))
+}
+
+// all community cards known
+pub fn hand_rank_all(hole_cards: &[Card; 2], community_cards: &[Card; 5]) -> HandRank {
+    let cards: Vec<Card> = community_cards.iter()
+        .chain(hole_cards.iter())
+        .copied().collect();
+
+    hand_rank(cards)
 }
 

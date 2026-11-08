@@ -4,30 +4,30 @@ use crate::*;
 
 #[derive(Debug)]
 pub struct State {
-    players: Vec<Player>,                  // game-scope
-    deck: Deck,
-    big_blind: usize,
+    pub players: Vec<Player>,                  // game-scope
+    pub deck: Deck,
+    pub big_blind: usize,
 
-    community_cards: [Option<Card>; 5],    // hand-scope
-    pot: usize,
-    dealer: usize,
+    pub community_cards: [Option<Card>; 5],    // hand-scope
+    pub pot: usize,
+    pub dealer: usize,
 
-    cur_street: Street,                    // street-scope
-    cur_player: usize,
-    cur_alpha: usize,
-    cur_bet: usize,
-    cur_raise: usize,
+    pub cur_street: Street,                    // street-scope
+    pub cur_player: usize,
+    pub cur_alpha: usize,
+    pub cur_bet: usize,
+    pub cur_raise: usize,
 }
 
 impl State {
     fn create_std(players: usize, deck: Deck) -> Self {
         // let dealer = thread_rng().gen_range(0..players);
         let dealer = 0;
-        let big_blind = 200;
+        let big_blind = 400;
         let cur_player = if players == 2 { 0 } else { (dealer + 3) % players };
 
         Self {
-            players: vec![Player::new(1000); players],
+            players: vec![Player::new(10_000); players],
             deck,
             big_blind,
             community_cards: [None; 5],
@@ -129,7 +129,8 @@ impl State {
         // next street
         if self.cur_player == self.cur_alpha {
             self.cur_bet = 0;
-            self.cur_raise = self.big_blind;
+            // self.cur_raise = self.big_blind;
+            self.cur_raise = 0;        // TODO: just for current hand
             self.players.iter_mut().for_each(|p| p.bet = 0);
             self.cur_street.next_street();
 
@@ -178,8 +179,8 @@ impl State {
         let rankings: Vec<usize> = self.players.iter_mut().enumerate()
             .filter(|(_, player)| player.hole_cards[0].is_some())
             .sorted_by(|(_, p1), (_, p2)| {
-                let p2_rank = hand_rank(&p2.hole_cards, &self.community_cards);
-                let p1_rank = hand_rank(&p1.hole_cards, &self.community_cards);
+                let p2_rank = hand_rank_some(&p2.hole_cards, &self.community_cards);
+                let p1_rank = hand_rank_some(&p1.hole_cards, &self.community_cards);
                 p2_rank.cmp(&p1_rank)
             })
             .map(|(i, _)| i)
@@ -197,6 +198,7 @@ impl State {
                 });
 
             self.players[i].stack += winner_win_amount + self.players[i].stake;
+            self.players[i].stake = 0;
         }
 
         self.pot = 0;
@@ -204,16 +206,16 @@ impl State {
 
     pub fn table(&self) {
         println!(
-            "{} \nCommunity cards: {} {} {} {} {} \nPot: {} \nCurrent bet: {} \nMinimum raise: {} \n",
+            "{} \nCommunity cards: {} {} {} {} {} \nPot: ${} \nCurrent bet: ${} \nMinimum raise: ${} \n",
             self.cur_street,
             if let Some(card) = self.community_cards[0] { card.raw() } else { "".to_string() },
             if let Some(card) = self.community_cards[1] { card.raw() } else { "".to_string() },
             if let Some(card) = self.community_cards[2] { card.raw() } else { "".to_string() },
             if let Some(card) = self.community_cards[3] { card.raw() } else { "".to_string() },
             if let Some(card) = self.community_cards[4] { card.raw() } else { "".to_string() },
-            self.pot,
-            self.cur_bet,
-            self.cur_bet + self.cur_raise,
+            self.pot.separate_with_commas(),
+            self.cur_bet.separate_with_commas(),
+            (self.cur_bet + self.cur_raise).separate_with_commas(),
         );
 
         (0..self.players.len()).for_each(|i| {
@@ -224,16 +226,21 @@ impl State {
             let space = if self.cur_player == c && self.cur_alpha == c { " " } else { "" };
 
             println!(
-                "Player {} {}{}{} \nHole cards: {} {} \n{}Bet: {} \nStack: {} \n",
+                "Player {} {}{}{} \nHole cards: {} {} \n{}Bet: ${} \nStake: {} \nStack: ${} \n",
                 i,
                 cur_player_text,
                 space,
                 cur_alpha_text,
                 if let Some(card) = p.hole_cards[0] { card.raw() } else { "X".to_string() },
                 if let Some(card) = p.hole_cards[1] { card.raw() } else { "X".to_string() },
-                if let Some(h) = hand_rank(&p.hole_cards, &self.community_cards) { format!("{h:?}\n", ) } else { "".to_string() },
-                p.bet,
-                p.stack,
+                if p.hole_cards[0].is_some() && let Some(h) = hand_rank_some(&p.hole_cards, &self.community_cards) {
+                    format!("({}) {:?}\n", h.value(), h)
+                } else {
+                    "".to_string()
+                },
+                p.bet.separate_with_commas(),
+                p.stake.separate_with_commas(),
+                p.stack.separate_with_commas(),
             );
         });
     }
