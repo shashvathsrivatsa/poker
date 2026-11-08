@@ -2,6 +2,7 @@ use crate::*;
 
 // ——— Primitves ——————————————————————————————————————————————————————————————————————————————————————————————————————
 
+#[repr(usize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Rank { Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King, Ace }
 pub use Rank::*;
@@ -22,6 +23,27 @@ impl Rank {
             Queen => King,
             King => Ace,
             Ace => panic!("nothing higher than ace"),
+        }
+    }
+}
+
+impl From<usize> for Rank {
+    fn from(i: usize) -> Self {
+        match i {
+            0 => Two,
+            1 => Three,
+            2 => Four,
+            3 => Five,
+            4 => Six,
+            5 => Seven,
+            6 => Eight,
+            7 => Nine,
+            8 => Ten,
+            9 => Jack,
+            10 => Queen,
+            11 => King,
+            12 => Ace,
+            _ => panic!("invalid rank index")
         }
     }
 }

@@ -2,25 +2,80 @@ use crate::*;
 
 // ——— Hand Rank ——————————————————————————————————————————————————————————————————————————————————————————————————————
 
-fn hand_rank(cards: Vec<Card>) -> HandRank {
-    cards.into_iter().combinations(5).map(|mut hand| {
+fn hand_rank(cards: &[Option<Card>; 7]) -> HandRank {
+
+    // build hand combinations
+    let mut hand_combinations: [Option<[Card; 5]>; 21] = [None; 21];
+
+    match cards.iter().filter(|card| card.is_some()).count() {
+
+        // C(5, 5)
+        5 => {
+            let mut hand = [Card::default(); 5];
+
+            cards.iter()
+                .filter(|card| card.is_some())
+                .map(|card| card.unwrap())
+                .enumerate()
+                .for_each(|(j, card)| hand[j] = card);
+
+            hand_combinations[0] = Some(hand);
+        },
+
+        // C(6, 5)
+        6 => {
+            let mut hc_i = 0;
+
+            for card_1 in cards.iter().filter(|card| card.is_some()).map(|card| card.unwrap()) {
+                let mut hand = [Card::default(); 5];
+
+                cards.iter()
+                    .filter(|card| card.is_some())
+                    .map(|card| card.unwrap())
+                    .filter(|&card| !card.strictly_eq(&card_1))
+                    .enumerate()
+                    .for_each(|(j, card)| hand[j] = card);
+
+                hand_combinations[hc_i] = Some(hand);
+                hc_i += 1;
+            }
+        },
+
+        // C(7, 5)
+        7 => {
+            let mut hc_i = 0;
+
+            for (i, card_1) in cards.iter().enumerate().map(|(i, card)| (i, card.unwrap())) {
+                for card_2 in cards.iter().skip(i+1).map(|card| card.unwrap()) {
+                    let mut hand = [Card::default(); 5];
+
+                    cards.iter()
+                        .map(|card| card.unwrap())
+                        .filter(|&card| !card.strictly_eq(&card_1) && !card.strictly_eq(&card_2))
+                        .enumerate()
+                        .for_each(|(j, card)| hand[j] = card);
+
+                    hand_combinations[hc_i] = Some(hand);
+                    hc_i += 1;
+                }
+            }
+        },
+        _ => panic!("unreachable")
+    }
+
+
+    // iterate over all hand combinations
+    hand_combinations.iter().filter(|hand| hand.is_some()).map(|hand| {
+        let mut hand = hand.unwrap();
         hand.sort();
 
         // residuals
-        let mut pairs = [0; 5];
-        hand.windows(2).enumerate()
-            .filter(|(_, window)| window[0] == window[1])
-            .for_each(|(i, _)| pairs[i] = 1);
+        let mut rank_counts = [0; 13];
+        hand.iter().for_each(|&card| rank_counts[card.rank as usize] += 1);
 
-        let mut trips = [0; 5];
-        hand.windows(3).enumerate()
-            .filter(|(_, window)| window.windows(2).all(|w| w[0] == w[1]))
-            .for_each(|(i, _)| trips[i] = 1);
-
-        let mut quads = [0; 5];
-        hand.windows(4).enumerate()
-            .filter(|(_, window)| window.windows(2).all(|w| w[0] == w[1]))
-            .for_each(|(i, _)| quads[i] = 1);
+        let pairs_count = rank_counts.iter().filter(|&&rank_count| rank_count == 2).count();
+        let trips_count = rank_counts.iter().filter(|&&rank_count| rank_count == 3).count();
+        let quads_count = rank_counts.iter().filter(|&&rank_count| rank_count == 4).count();
 
         let straight: bool =
             (
@@ -40,15 +95,23 @@ fn hand_rank(cards: Vec<Card>) -> HandRank {
         if straight && flush && hand[4].rank == Ace { RoyalFlush }
 
         // (9) straight flush
-        else if straight && flush { StraightFlush(hand[4].rank) }
+        else if straight && flush {
+            if hand[0].rank == Two && hand[4].rank == Ace { StraightFlush(hand[3].rank) }
+            else { StraightFlush(hand[4].rank) }
+        }
 
         // (8) quads
-        else if quads.len() > 0 { FourOfAKind(hand[quads[0]].rank, hand[(quads[0] + 4) % 5].rank) }
+        else if quads_count == 1 {
+            let quad = Rank::from(rank_counts.iter().position(|&rank_count| rank_count == 4).unwrap());
+            let kicker = Rank::from(rank_counts.iter().position(|&rank_count| rank_count == 1).unwrap());
+            FourOfAKind(quad, kicker)
+        }
 
         // (7) full house
-        else if trips.len() > 0 && pairs.len() > 2 {
-            let pair_rank = pairs.iter().filter(|&&i| hand[i].rank != hand[trips[0]].rank).copied().collect::<Vec<_>>();
-            FullHouse(hand[trips[0]].rank, hand[pair_rank[0]].rank)
+        else if pairs_count == 1 && trips_count == 1 {
+            let pair = Rank::from(rank_counts.iter().position(|&rank_count| rank_count == 2).unwrap());
+            let trip = Rank::from(rank_counts.iter().position(|&rank_count| rank_count == 3).unwrap());
+            FullHouse(pair, trip)
         }
 
         // (6) flush
@@ -61,34 +124,43 @@ fn hand_rank(cards: Vec<Card>) -> HandRank {
         }
 
         // (4) trips
-        else if trips.len() > 0 { 
-            let kickers: Vec<Rank> = (3..5).map(|i| hand[(trips[0] + i) % 5].rank).sorted_by(|a, b| b.cmp(a)).collect();
-            ThreeOfAKind(hand[trips[0]].rank, [kickers[0], kickers[1]])
+        else if trips_count == 1 {
+            let trip = Rank::from(rank_counts.iter().position(|&rank_count| rank_count == 3).unwrap());
+
+            let mut kickers = [Ace; 2];
+            rank_counts.iter().enumerate().rev()
+                .filter(|&(_, &rank_count)| rank_count == 1)
+                .enumerate()
+                .for_each(|(i, (rank, _))| { kickers[i] = Rank::from(rank); });
+
+            ThreeOfAKind(trip, kickers)
         }
 
         // (3) two pair
-        else if pairs.iter().filter(|&&k| k == 1).count() > 1 {
-            // let pairs_indices = [Rank; 2];
-            pairs.iter().enumerate()
-                .filter(|&(_, &k)| k == 1)
-                .map(|(kicker_i, _)| hand[kicker_i].rank)
-                .;
+        else if pairs_count == 2 {
+            let mut pairs = [Ace; 2];
+            rank_counts.iter().enumerate().rev()
+                .filter(|&(_, &rank_count)| rank_count == 2)
+                .enumerate()
+                .for_each(|(i, (rank, _))| { pairs[i] = Rank::from(rank); });
 
-            let pairs_ranks: Vec<Rank> = pairs.iter().map(|&i| hand[i].rank).sorted_by(|a, b| b.cmp(a)).collect();
-            TwoPair(pairs_ranks[0], pairs_ranks[1], hand[(pairs[0] + 4 + (pairs[1] - (pairs[0] + 2)) * 3) % 5].rank)
+
+            let kicker = Rank::from(rank_counts.iter().position(|&rank_count| rank_count == 1).unwrap());
+
+            TwoPair(pairs[0], pairs[1], kicker)
         }
 
         // (2) one pair
-        else if pairs.iter().any(|&k| k == 1) {
-            let pair_index = pairs.iter().position(|&k| k == 1).unwrap();
-            let mut kickers = [0; 3];
+        else if pairs_count == 1 {
+            let pair = Rank::from(rank_counts.iter().position(|&rank_count| rank_count == 2).unwrap());
 
-            (2..5).enumerate()
-                .map(|(i, kicker_i)| (i, hand[(pair_index + kicker_i) % 5].rank))
-                .sorted_by(|(_, a), (_, b)| b.cmp(a))
-                .for_each(|(i, _)| kickers[i] = 1);
+            let mut kickers = [Ace; 3];
+            rank_counts.iter().enumerate().rev()
+                .filter(|&(_, &rank_count)| rank_count == 1)
+                .enumerate()
+                .for_each(|(i, (rank, _))| { kickers[i] = Rank::from(rank); });
 
-            OnePair(hand[pair_index].rank, [hand[kickers[0]].rank, hand[kickers[1]].rank, hand[kickers[2]].rank])
+            OnePair(pair, kickers)
         }
 
         // (1) high card
@@ -101,22 +173,28 @@ fn hand_rank(cards: Vec<Card>) -> HandRank {
 pub fn hand_rank_some(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -> Option<HandRank> {
     if community_cards.iter().filter(|c| c.is_some()).count() == 0 { return None; }
 
-    let cards: Vec<Card> = community_cards.iter()
+    let mut cards: [Option<Card>; 7] = [None; 7];
+
+    community_cards.iter()
         .filter(|card| card.is_some())
         .map(|card| card.unwrap())
         .chain(hole_cards.iter().map(|card| card.unwrap()))
-        .collect();
+        .enumerate()
+        .for_each(|(i, card)| cards[i] = Some(card));
 
-    Some(hand_rank(cards))
+    Some(hand_rank(&cards))
 }
 
 // all community cards known
 pub fn hand_rank_all(hole_cards: &[Card; 2], community_cards: &[Card; 5]) -> HandRank {
-    let cards: Vec<Card> = community_cards.iter()
-        .chain(hole_cards.iter())
-        .copied().collect();
+    let mut cards: [Option<Card>; 7] = [None; 7];
 
-    hand_rank(cards)
+    community_cards.iter()
+        .chain(hole_cards.iter())
+        .enumerate()
+        .for_each(|(i, &card)| cards[i] = Some(card));
+
+    hand_rank(&cards)
 }
 
 

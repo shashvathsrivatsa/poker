@@ -105,9 +105,13 @@ pub fn fhs(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) 
     // for each combination, calculate their hand rank
     println!("Total possible outcomes: {}", all_possible_outcomes.len().separate_with_commas());
 
+    println!("yo?");
+
     let opp_ranks: Vec<HandRank> = all_possible_outcomes.iter()
         .map(|(opp_hole_cards, future_community_cards)| hand_rank_all(opp_hole_cards, future_community_cards))
         .collect();
+
+    println!("yo");
 
     // count how many times you win
     let cur_rank = hand_rank_some(hole_cards, community_cards).unwrap();
