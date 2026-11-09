@@ -170,15 +170,15 @@ fn hand_rank(cards: &[Option<Card>; 7]) -> HandRank {
 }
 
 // only some community cards known
-pub fn hand_rank_some(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -> Option<HandRank> {
-    if community_cards.iter().filter(|c| c.is_some()).count() == 0 { return None; }
+pub fn hand_rank_some(hole: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> Option<HandRank> {
+    if community.iter().filter(|c| c.is_some()).count() == 0 { return None; }
 
     let mut cards: [Option<Card>; 7] = [None; 7];
 
-    community_cards.iter()
+    community.iter()
         .filter(|card| card.is_some())
         .map(|card| card.unwrap())
-        .chain(hole_cards.iter().map(|card| card.unwrap()))
+        .chain(hole.iter().map(|card| card.unwrap()))
         .enumerate()
         .for_each(|(i, card)| cards[i] = Some(card));
 
@@ -186,11 +186,11 @@ pub fn hand_rank_some(hole_cards: &[Option<Card>; 2], community_cards: &[Option<
 }
 
 // all community cards known
-pub fn hand_rank_all(hole_cards: &[Card; 2], community_cards: &[Card; 5]) -> HandRank {
+pub fn hand_rank_all(hole: &[Card; 2], community: &[Card; 5]) -> HandRank {
     let mut cards: [Option<Card>; 7] = [None; 7];
 
-    community_cards.iter()
-        .chain(hole_cards.iter())
+    community.iter()
+        .chain(hole.iter())
         .enumerate()
         .for_each(|(i, &card)| cards[i] = Some(card));
 
