@@ -21,3 +21,5 @@ pub use rand::{ Rng, rngs::StdRng, SeedableRng, seq::SliceRandom, thread_rng };
 
 pub use thousands::Separable;
 
+pub use rayon::prelude::*;
+
