@@ -35,16 +35,19 @@ pub fn fhs(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) 
     }).collect();
 
     // for each combination, count how many times you win
-    println!("Total possible outcomes: {}", all_outcomes_pot.len().separate_with_commas());
-
-    // TODO: not factoring in ties
-
-    let wins = all_outcomes_pot.par_iter().filter(|(opp_hole_cards, future_community_cards)| {
+    let wins: f64 = all_outcomes_pot.par_iter().map(|(opp_hole_cards, future_community_cards)| {
         let your_rank = hand_rank_all(&hole_cards.map(|c| c.unwrap()), future_community_cards);
-        hand_rank_all(opp_hole_cards, future_community_cards) < your_rank
-    }).count();
+        let opp_rank = hand_rank_all(opp_hole_cards, future_community_cards);
+
+        match opp_rank.cmp(&your_rank) {
+            Ordering::Less => 1.0,
+            Ordering::Equal => 0.5,
+            Ordering::Greater => 0.0,
+        }
+    }).sum();
 
     // fhs = wins / total
-    wins as f64 / all_outcomes_pot.len() as f64
+    // println!("{} / {}", wins.separate_with_commas(), all_outcomes_pot.len().separate_with_commas());
+    wins / (all_outcomes_pot.len() as f64)
 }
 
