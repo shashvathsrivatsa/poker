@@ -6,113 +6,45 @@ use crate::*;
 pub fn fhs(hole_cards: &[Option<Card>; 2], community_cards: &[Option<Card>; 5]) -> f64 {
 
     // find remaining cards (assuming fresh deck)
-    let mut cards_seen: Vec<Card> = Vec::with_capacity(52);
-    hole_cards.iter().for_each(|&c| cards_seen.push(c.unwrap()));
-    community_cards.iter().filter(|c| c.is_some()).for_each(|&c| cards_seen.push(c.unwrap()));
-
-    let mut deck_temp = Deck::new();
-    cards_seen.iter().for_each(|&c| { deck_temp.pick_out(c); });
-    let cards_unknown: Vec<Card> = deck_temp.draw_pile;
+    let cards_unknown: Vec<Card> = Deck::new().draw_pile.into_iter().filter(|&c| {
+        hole_cards.iter().chain(community_cards.iter().filter(|c| c.is_some())).all(|d| !c.strictly_eq(&d.unwrap()))
+    }).collect();
 
     // find every combination of cards your opponent could have
-    let opp_hole_cards: Vec<Vec<Card>> = cards_unknown.clone().into_iter()
+    let all_opp_hole_cards: Vec<Vec<Card>> = cards_unknown.clone().into_iter()
         .combinations(2)
         .collect();
 
     // add all future hand cards possibilities
-    let all_possible_outcomes = match community_cards.iter().filter(|c| c.is_some()).count() {
+    let all_outcomes_pot: Vec<([Card; 2], [Card; 5])> = all_opp_hole_cards.iter().flat_map(|opp_hole_cards_pot| {
+        let all_community_cards_rem_pot = cards_unknown.iter()
+            .filter(|c| opp_hole_cards_pot.iter().all(|o| !c.strictly_eq(o)))
+            .combinations(community_cards.iter().filter(|card| card.is_none()).count());
 
-        // Turn & River
-        // C(47, 2) * C(45, 1) * C(44, 1)
-        3 => {
-            let mut all_possible_outcomes: Vec<([Card; 2], [Card; 5])> = Vec::with_capacity(opp_hole_cards.len() * 45 * 44);
+        all_community_cards_rem_pot.map(move |future_community_cards_rem| {
+            let mut community_cards_pot = [Card::default(); 5];
 
-            for opp_hole_cards in opp_hole_cards.iter() {
-                let cards_unknown_iter = cards_unknown.iter().filter(|&c| {
-                    opp_hole_cards.iter().all(|o| !c.strictly_eq(o))
-                });
+            community_cards.iter()
+                .filter(|c| c.is_some()).map(|c| c.unwrap())
+                .chain(future_community_cards_rem.iter().map(|&&c| c))
+                .enumerate()
+                .for_each(|(i, c)| community_cards_pot[i] = c);
 
-                for &turn in cards_unknown_iter {
-                    let cards_unknown_iter = cards_unknown.iter().filter(|&c| {
-                        opp_hole_cards.iter().chain(std::iter::once(&turn)).all(|o| !c.strictly_eq(o))
-                    });
-
-                    for &river in cards_unknown_iter {
-                        all_possible_outcomes.push((
-                            [ opp_hole_cards[0], opp_hole_cards[1] ],
-                            [
-                                community_cards[0].unwrap(),
-                                community_cards[1].unwrap(),
-                                community_cards[2].unwrap(),
-                                turn,
-                                river,
-                            ]
-                        ));
-                    }
-                }
-            }
-
-            all_possible_outcomes
-        },
-
-        // River
-        // C(47, 2) * C(45, 1)
-        4 => {
-            let mut all_possible_outcomes: Vec<([Card; 2], [Card; 5])> = Vec::with_capacity(opp_hole_cards.len() * 45);
-
-            for opp_hole_cards in opp_hole_cards.iter() {
-                let cards_unknown_iter = cards_unknown.iter().filter(|&c| {
-                    opp_hole_cards.iter().all(|o| !c.strictly_eq(o))
-                });
-
-                for &river in cards_unknown_iter {
-                    all_possible_outcomes.push((
-                        [ opp_hole_cards[0], opp_hole_cards[1] ],
-                        [
-                            community_cards[0].unwrap(),
-                            community_cards[1].unwrap(),
-                            community_cards[2].unwrap(),
-                            community_cards[3].unwrap(),
-                            river,
-                        ]
-                    ))
-                }
-            }
-
-            all_possible_outcomes
-        },
-
-        // None
-        // C(47, 2)
-        5 => {
-            opp_hole_cards.iter().map(|opp_hole_cards| (
-                [ opp_hole_cards[0], opp_hole_cards[1] ],
-                [
-                    community_cards[0].unwrap(),
-                    community_cards[1].unwrap(),
-                    community_cards[2].unwrap(),
-                    community_cards[3].unwrap(),
-                    community_cards[4].unwrap(),
-                ]
-            )).collect()
-        },
-
-        // Flop & Turn & River
-        _ => panic!("not handling preflop")
-    };
-
+            ([opp_hole_cards_pot[0], opp_hole_cards_pot[1]], community_cards_pot)
+        })
+    }).collect();
 
     // for each combination, count how many times you win
-    println!("Total possible outcomes: {}", all_possible_outcomes.len().separate_with_commas());
+    println!("Total possible outcomes: {}", all_outcomes_pot.len().separate_with_commas());
 
     // TODO: not factoring in ties
-    let wins = all_possible_outcomes.par_iter().filter(|(opp_hole_cards, future_community_cards)| {
-        let your_rank = hand_rank_some(hole_cards, community_cards).unwrap();
+
+    let wins = all_outcomes_pot.par_iter().filter(|(opp_hole_cards, future_community_cards)| {
+        let your_rank = hand_rank_all(&hole_cards.map(|c| c.unwrap()), future_community_cards);
         hand_rank_all(opp_hole_cards, future_community_cards) < your_rank
     }).count();
 
-
-    // hs = wins / total
-    wins as f64 / all_possible_outcomes.len() as f64
+    // fhs = wins / total
+    wins as f64 / all_outcomes_pot.len() as f64
 }
 
