@@ -15,6 +15,7 @@ pub use std::{
     io::{ BufReader, BufRead },
 };
 
+pub use bitvec::prelude::*;
 pub use itertools::Itertools;
 pub use rand::{ Rng, rngs::StdRng, SeedableRng, seq::SliceRandom, thread_rng };
 pub use rayon::prelude::*;

@@ -21,7 +21,7 @@ pub struct State {
 
 impl State {
     fn create_std(players: usize, deck: Deck) -> Self {
-        // let dealer = thread_rng().gen_range(0..players);
+        let dealer = thread_rng().gen_range(0..players);
         let dealer = 0;
         let big_blind = 400;
         let cur_player = if players == 2 { 0 } else { (dealer + 3) % players };

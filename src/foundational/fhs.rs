@@ -2,26 +2,17 @@ use crate::*;
 
 // ——— Full Hand Strength —————————————————————————————————————————————————————————————————————————————————————————————
 
-// NOTE: could add folded cards to incorporate more information
-pub fn fhs(hole: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64 {
+pub fn fhs(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64 {
+    let your_cards: [Card; 2] = [your_cards[0].unwrap(), your_cards[1].unwrap()];
+    let community_count = community.iter().filter(|c| c.is_some()).count();
+    let deck: Vec<Card> = Deck::new().draw_pile;
 
-    // find remaining cards (assuming fresh deck)
-    let cards_unknown: Vec<Card> = Deck::new().draw_pile.into_iter().filter(|&c| {
-        hole.iter().chain(community.iter().filter(|c| c.is_some())).all(|d| !c.strictly_eq(&d.unwrap()))
-    }).collect();
-
-    // find every combination of cards your opponent could have
-    let all_opp_holes: Vec<Vec<Card>> = cards_unknown.clone().into_iter()
-        .combinations(2)
-        .collect();
-
-    // add all future hand cards possibilities
-    let all_outcomes_pot: Vec<([Card; 2], [Card; 5])> = all_opp_holes.iter().flat_map(|opp_hole_pot| {
-        let all_community_rem_pot = cards_unknown.iter()
-            .filter(|c| opp_hole_pot.iter().all(|o| !c.strictly_eq(o)))
-            .combinations(community.iter().filter(|card| card.is_none()).count());
-
-        all_community_rem_pot.map(move |community_rem_pot| {
+    // enumerate all community outcomes
+    let all_community: Vec<[Card; 5]> = deck.iter()
+        .filter(|c| your_cards.iter().all(|o| !c.strictly_eq(&o)))
+        .filter(|c| community.iter().filter(|c| c.is_some()).all(|o| !c.strictly_eq(&o.unwrap())))
+        .combinations(5 - community_count)
+        .map(|community_rem_pot| {
             let mut community_pot = [Card::default(); 5];
 
             community.iter()
@@ -30,24 +21,92 @@ pub fn fhs(hole: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64 {
                 .enumerate()
                 .for_each(|(i, c)| community_pot[i] = c);
 
-            ([opp_hole_pot[0], opp_hole_pot[1]], community_pot)
+            community_pot
         })
+    .collect();
+
+    // enumerate all outcomes
+    let all_outcomes = all_community.iter().map(|&community_pot| {
+        let all_opp_cards = deck.iter()
+            .filter(|c| your_cards.iter().all(|o| !c.strictly_eq(&o)))
+            .filter(move |c| community_pot.iter().all(|o| !c.strictly_eq(o)))
+            .combinations(2)
+            .map(|opp_cards_pot| [ opp_cards_pot[0].clone(), opp_cards_pot[1].clone() ]);
+
+        (community_pot, all_opp_cards)
+    });
+
+    // remove redundant outcomes
+    let mut outcome_count = bitvec!(0; 62_748_517);    // 13^7
+
+    let all_filtered_outcomes = all_outcomes.clone().map(|(community_pot, all_opp_cards)| {        // remove clone later
+        // let index: usize = community_pot.iter().enumerate().map(|(i, c)| c.rank as usize * 13_usize.pow(i as u32)).sum();
+
+        let all_opp_cards = all_opp_cards.filter(|opp_cards_pot| {
+            let index: usize = opp_cards_pot.iter().enumerate().map(|(i, c)| c.rank as usize * 13_usize.pow(i as u32)).sum();
+
+            // match outcome_count[0] {
+            //     false => {
+            //         outcome_count.set(0, true);
+            //         true
+            //     },
+            //     true => false
+            // }
+            true
+        });
+
+        (community_pot, all_opp_cards)
+    })
+    // .filter()
+    ;
+
+    let mut i = 0;
+    let all_filtered_outcomes = all_outcomes.clone().for_each(|(community_pot, all_opp_cards)| {
+        let all_opp_cards = all_opp_cards.filter(|opp_cards_pot| {
+            outcome_count.set(0, true);
+            let index: usize = community_pot.iter().chain(opp_cards_pot.iter()).enumerate()
+                .map(|(i, c)| c.rank as usize * 13_usize.pow(i as u32))
+                .sum();
+
+            match outcome_count[index] {
+                false => {
+                    outcome_count.set(index, true);
+                    true
+                },
+                true => false
+            }
+        });
+
+        // (community_pot, all_opp_cards)
+        i += 1;
+    });
+
+    println!("{i}");
+
+    // compare
+    // println!(
+    //     "Total possible outcomes: {}",
+    //     all_outcomes.clone().map(|(_, all_opp_cards)| all_opp_cards.count()).sum::<usize>().separate_with_commas(),
+    // );
+    // println!(
+    //     "Total filtered outcomes: {}",
+    //     all_filtered_outcomes.map(|(_, all_opp_cards)| all_opp_cards.len()).sum::<usize>().separate_with_commas(),
+    // );
+
+
+    // count how many outcomes you win
+    let wins: Vec<f64> = all_outcomes.map(|(community_pot, all_opp_cards)| {
+        all_opp_cards.fold(0.0, |sum, opp_cards_pot| {
+            let opp_rank = hand_rank_all(&opp_cards_pot, &community_pot);
+            let your_rank = hand_rank_all(&your_cards, &community_pot);
+            sum + match opp_rank.cmp(&your_rank) {
+                Ordering::Less => 1.0,
+                Ordering::Equal => 0.5,
+                Ordering::Greater => 0.0,
+            }
+        }) / 990.0
     }).collect();
 
-    // for each combination, count how many times you win
-    let wins: f64 = all_outcomes_pot.par_iter().map(|(opp_hole_pot, community_pot)| {
-        let your_rank = hand_rank_all(&hole.map(|c| c.unwrap()), community_pot);
-        let opp_rank = hand_rank_all(opp_hole_pot, community_pot);
-
-        match opp_rank.cmp(&your_rank) {
-            Ordering::Less => 1.0,
-            Ordering::Equal => 0.5,
-            Ordering::Greater => 0.0,
-        }
-    }).sum();
-
-    // fhs = wins / total
-    // println!("{} / {}", wins.separate_with_commas(), all_outcomes_pot.len().separate_with_commas());
-    wins / (all_outcomes_pot.len() as f64)
+    wins.iter().sum::<f64>() / wins.len() as f64
 }
 
