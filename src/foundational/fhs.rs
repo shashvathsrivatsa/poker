@@ -36,37 +36,23 @@ pub fn fhs(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64
         (community_pot, all_opp_cards)
     });
 
+    println!(
+        "Total possible outcomes: {}",
+        all_outcomes.clone().map(|(_, all_opp_cards)| all_opp_cards.count()).sum::<usize>().separate_with_commas(),
+    );
+
     // remove redundant outcomes
     let mut outcome_count = bitvec!(0; 62_748_517);    // 13^7
 
-    let all_filtered_outcomes = all_outcomes.clone().map(|(community_pot, all_opp_cards)| {        // remove clone later
-        // let index: usize = community_pot.iter().enumerate().map(|(i, c)| c.rank as usize * 13_usize.pow(i as u32)).sum();
+    let encode = |community_pot: &[Card; 5], opp_cards_pot: &[Card; 2]| -> usize {
+        community_pot.iter().chain(opp_cards_pot.iter()).enumerate()
+            .map(|(i, c)| c.rank as usize * 13_usize.pow(i as u32))
+            .sum()
+    };
 
+    let all_outcomes_filtered = all_outcomes.map(|(community_pot, all_opp_cards)| {
         let all_opp_cards = all_opp_cards.filter(|opp_cards_pot| {
-            let index: usize = opp_cards_pot.iter().enumerate().map(|(i, c)| c.rank as usize * 13_usize.pow(i as u32)).sum();
-
-            // match outcome_count[0] {
-            //     false => {
-            //         outcome_count.set(0, true);
-            //         true
-            //     },
-            //     true => false
-            // }
-            true
-        });
-
-        (community_pot, all_opp_cards)
-    })
-    // .filter()
-    ;
-
-    let mut i = 0;
-    let all_filtered_outcomes = all_outcomes.clone().for_each(|(community_pot, all_opp_cards)| {
-        let all_opp_cards = all_opp_cards.filter(|opp_cards_pot| {
-            outcome_count.set(0, true);
-            let index: usize = community_pot.iter().chain(opp_cards_pot.iter()).enumerate()
-                .map(|(i, c)| c.rank as usize * 13_usize.pow(i as u32))
-                .sum();
+            let index = encode(&community_pot, opp_cards_pot);
 
             match outcome_count[index] {
                 false => {
@@ -75,28 +61,14 @@ pub fn fhs(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64
                 },
                 true => false
             }
-        });
+        }).collect::<Vec<_>>();
 
-        // (community_pot, all_opp_cards)
-        i += 1;
-    });
-
-    println!("{i}");
-
-    // compare
-    // println!(
-    //     "Total possible outcomes: {}",
-    //     all_outcomes.clone().map(|(_, all_opp_cards)| all_opp_cards.count()).sum::<usize>().separate_with_commas(),
-    // );
-    // println!(
-    //     "Total filtered outcomes: {}",
-    //     all_filtered_outcomes.map(|(_, all_opp_cards)| all_opp_cards.len()).sum::<usize>().separate_with_commas(),
-    // );
-
+        (community_pot, all_opp_cards)
+    }).filter(|(_, all_opp_cards)| all_opp_cards.len() > 0);
 
     // count how many outcomes you win
-    let wins: Vec<f64> = all_outcomes.map(|(community_pot, all_opp_cards)| {
-        all_opp_cards.fold(0.0, |sum, opp_cards_pot| {
+    let wins = all_outcomes_filtered.map(|(community_pot, all_opp_cards)| {
+        let win_rate = all_opp_cards.iter().fold(0.0, |sum, opp_cards_pot| {
             let opp_rank = hand_rank_all(&opp_cards_pot, &community_pot);
             let your_rank = hand_rank_all(&your_cards, &community_pot);
             sum + match opp_rank.cmp(&your_rank) {
@@ -104,9 +76,17 @@ pub fn fhs(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64
                 Ordering::Equal => 0.5,
                 Ordering::Greater => 0.0,
             }
-        }) / 990.0
-    }).collect();
+        }) / all_opp_cards.len() as f64;
 
-    wins.iter().sum::<f64>() / wins.len() as f64
+        (win_rate, all_opp_cards.len())
+
+    }).collect::<Vec<_>>();
+
+    println!(
+        "Total filtered outcomes: {}",
+        wins.iter().map(|(_, opp_lens)| opp_lens).sum::<usize>().separate_with_commas(),
+    );
+
+    wins.iter().map(|(win_rate, _)| win_rate).sum::<f64>() / wins.len() as f64
 }
 

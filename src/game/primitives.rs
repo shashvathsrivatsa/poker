@@ -194,7 +194,7 @@ impl Deck {
     }
 
     pub fn shuffle(&mut self) {
-        let mut rng = StdRng::seed_from_u64(1);
+        let mut rng = StdRng::seed_from_u64(30);
         self.draw_pile.shuffle(&mut rng);
     }
 
