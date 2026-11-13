@@ -68,6 +68,13 @@ pub fn fhs(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64
         (community_pot, all_opp_cards)
     }).filter(|(_, all_opp_cards)| all_opp_cards.len() > 0);
 
+    unsafe {
+        let raw: *const _ = &all_outcomes_filtered;
+        let clone = std::ptr::read(raw);
+        let count = clone.map(|(_, all_opp_cards)| all_opp_cards.iter().count()).sum::<usize>();
+        println!("Total filtered outcomes: {}", count.separate_with_commas());
+    }
+
     // count how many outcomes you win
     let wins = all_outcomes_filtered.map(|(community_pot, all_opp_cards)| {
         let win_rate = all_opp_cards.iter().fold(0.0, |sum, opp_cards_pot| {
@@ -80,17 +87,12 @@ pub fn fhs(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64
             }
         }) / all_opp_cards.len() as f64;
 
-        (win_rate, all_opp_cards.len())
+        win_rate
 
     }).collect::<Vec<_>>();
 
-    println!(
-        "Total filtered outcomes: {}",
-        wins.iter().map(|(_, opp_lens)| opp_lens).sum::<usize>().separate_with_commas(),
-    );
+    histogram(&wins, 15);
 
-    histogram(&wins.clone().into_iter().map(|(win_rate, _)| win_rate).collect::<Vec<_>>(), 10);
-
-    wins.iter().map(|(win_rate, _)| win_rate).sum::<f64>() / wins.len() as f64
+    wins.iter().sum::<f64>() / wins.len() as f64
 }
 
