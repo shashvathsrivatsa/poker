@@ -10,11 +10,14 @@ fn main() {
         Call,
         Call,
 
+        // Call,
+        // Call,
+
     ].into_iter().for_each(|action| state.turn(action));
 
     state.table();
 
     let fhs = fhs(&state.players[0].hole_cards, &state.community_cards);
-    println!("{}", fhs.percent());
+    println!("Equity: {}", fhs.percent());
 }
 

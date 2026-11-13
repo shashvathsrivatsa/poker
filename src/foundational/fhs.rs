@@ -60,7 +60,9 @@ pub fn fhs(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64
                     true
                 },
                 true => false
-            }
+            };
+
+            true
         }).collect::<Vec<_>>();
 
         (community_pot, all_opp_cards)
@@ -86,6 +88,8 @@ pub fn fhs(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64
         "Total filtered outcomes: {}",
         wins.iter().map(|(_, opp_lens)| opp_lens).sum::<usize>().separate_with_commas(),
     );
+
+    histogram(&wins.clone().into_iter().map(|(win_rate, _)| win_rate).collect::<Vec<_>>(), 10);
 
     wins.iter().map(|(win_rate, _)| win_rate).sum::<f64>() / wins.len() as f64
 }

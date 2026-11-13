@@ -7,6 +7,9 @@ pub use foundational::*;
 pub mod utils;
 pub use utils::*;
 
+pub mod visualization;
+pub use visualization::*;
+
 pub use std::{
     array,
     cmp::Ordering,
