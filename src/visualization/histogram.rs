@@ -13,7 +13,7 @@ pub fn histogram(data: &[f64], buckets_count: usize) {
     let buckets: Vec<usize> = (0..buckets_count).map(|i| {
         let checkpoint = |i| -> f64 { data[0] + (i as f64 / buckets_count as f64) * (data.last().unwrap() - data[0]) };
         let (start, end) = (checkpoint(i), checkpoint(i+1));
-        data.iter().skip_while(|&&k| k < start).take_while(|&&k| k < end).count()
+        data.iter().skip_while(|&&k| k < start).take_while(|&&k| k < end || k == *data.last().unwrap()).count()
     }).collect();
 
     let scale = MAX_WIDTH as f64 / *buckets.iter().max().unwrap() as f64;
