@@ -22,7 +22,7 @@ pub fn histogram(data: &[f64], buckets_count: usize) {
         .map(|&bucket| ((bucket as f64 * scale).round() as usize, bucket))
         .for_each(|(bar_size, bucket)| println!(
             "│{}{}{}",
-            "█".repeat(bar_size),
+            "▇".repeat(bar_size),
             if bar_size == 0 { "" } else { " " },
             bucket,
         ));
