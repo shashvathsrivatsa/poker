@@ -48,10 +48,10 @@ impl From<usize> for Rank {
     }
 }
 
+#[repr(usize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Suit { Clubs, Diamonds, Hearts, Spades }
 pub use Suit::*;
-
 
 // ——— Card ——————————————————————————————————————————————————————————————————————————————————————————————————————
 

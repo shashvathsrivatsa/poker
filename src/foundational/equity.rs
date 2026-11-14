@@ -1,8 +1,8 @@
 use crate::*;
 
-// ——— Full Hand Strength —————————————————————————————————————————————————————————————————————————————————————————————
+// ——— Equity —————————————————————————————————————————————————————————————————————————————————————————————————————————
 
-pub fn fhs(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64 {
+pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64 {
     let your_cards: [Card; 2] = [your_cards[0].unwrap(), your_cards[1].unwrap()];
     let community_count = community.iter().filter(|c| c.is_some()).count();
     let deck: Vec<Card> = Deck::new().draw_pile;
@@ -45,9 +45,31 @@ pub fn fhs(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64
     let mut outcome_count = bitvec!(0; 62_748_517);    // 13^7
 
     let encode = |community_pot: &[Card; 5], opp_cards_pot: &[Card; 2]| -> usize {
-        community_pot.iter().chain(opp_cards_pot.iter()).enumerate()
-            .map(|(i, c)| c.rank as usize * 13_usize.pow(i as u32))
-            .sum()
+        let cards: Vec<Card> = community_pot.iter().chain(opp_cards_pot.iter()).cloned().collect();
+
+        // build suits count
+        let mut suits_count = [0; 4];
+        cards.iter().for_each(|c| {
+            suits_count[c.suit as usize] += 1;
+        });
+
+        // sort suits count
+        let suits_sorted: Vec<usize> = suits_count.into_iter().enumerate()
+            .sorted_by(|(_, a), (_, b)| a.cmp(b))        // not factoring in ties, might come back to bite
+            .map(|(i, suit_count)| i)
+            .collect();
+
+        // relabel suits
+        let cards: Vec<(Rank, usize)> = cards.iter().map(|card| {
+            let relabeled_suit = suits_sorted.iter().position(|&suit| (card.suit as usize) == suit).unwrap();
+            (card.rank, relabeled_suit)
+        }).collect();
+
+        // encode
+        // cards.iter().enumerate()
+        //     .map(|(i, c)| c.rank as usize * 13_usize.pow(i as u32))
+        //     .sum()
+        todo!();
     };
 
     let all_outcomes_filtered = all_outcomes.map(|(community_pot, all_opp_cards)| {

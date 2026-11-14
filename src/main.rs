@@ -17,7 +17,7 @@ fn main() {
 
     state.table();
 
-    let fhs = fhs(&state.players[0].hole_cards, &state.community_cards);
-    println!("Equity: {}", fhs.percent());
+    let equity = equity(&state.players[0].hole_cards, &state.community_cards);
+    println!("Equity: {}", equity.percent());
 }
 

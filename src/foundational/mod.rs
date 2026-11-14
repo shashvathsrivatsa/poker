@@ -1,2 +1,2 @@
-pub mod fhs;
-pub use fhs::*;
+pub mod equity;
+pub use equity::*;
