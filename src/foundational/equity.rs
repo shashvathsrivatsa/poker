@@ -7,7 +7,7 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
     let community_count = community.iter().filter(|c| c.is_some()).count();
     let deck: Vec<Card> = Deck::new().draw_pile;
 
-    // enumerate all community outcomes
+    // Enumerate all community outcomes
     let all_community: Vec<[Card; 5]> = deck.iter()
         .filter(|c| your_cards.iter().all(|o| !c.strictly_eq(&o)))
         .filter(|c| community.iter().filter(|c| c.is_some()).all(|o| !c.strictly_eq(&o.unwrap())))
@@ -25,7 +25,7 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
         })
     .collect();
 
-    // enumerate all outcomes
+    // Enumerate all outcomes
     let all_outcomes = all_community.iter().map(|&community_pot| {
         let all_opp_cards = deck.iter()
             .filter(|c| your_cards.iter().all(|o| !c.strictly_eq(&o)))
@@ -41,34 +41,95 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
         all_outcomes.clone().map(|(_, all_opp_cards)| all_opp_cards.count()).sum::<usize>().separate_with_commas(),
     );
 
-    // remove redundant outcomes
-    let mut outcome_count = bitvec!(0; 62_748_517);    // 13^7
+    // Remove redundant outcomes
+    let mut outcome_count = bitvec!(0; 392_705_170);
 
     let encode = |community_pot: &[Card; 5], opp_cards_pot: &[Card; 2]| -> usize {
-        let cards: Vec<Card> = community_pot.iter().chain(opp_cards_pot.iter()).cloned().collect();
+        // let cards: Vec<Card> = community_pot.iter()
+        //     .chain(opp_cards_pot.iter())
+        //     .chain(your_cards.iter())
+        //     .cloned().collect();
 
-        // build suits count
-        let mut suits_count = [0; 4];
-        cards.iter().for_each(|c| {
-            suits_count[c.suit as usize] += 1;
-        });
+        // Build suits count
+        let mut suit_counts = [0; 4];
 
-        // sort suits count
-        let suits_sorted: Vec<usize> = suits_count.into_iter().enumerate()
-            .sorted_by(|(_, a), (_, b)| a.cmp(b))        // not factoring in ties, might come back to bite
-            .map(|(i, suit_count)| i)
+        community_pot.iter()
+            .chain(opp_cards_pot.iter())
+            .chain(your_cards.iter())
+            .for_each(|c| { suit_counts[c.suit as usize] += 1; });
+
+        // Sort suits count
+        let suits_sorted: Vec<usize> = suit_counts.into_iter().enumerate()
+            .sorted_by(|(i, a), (j, b)| b.cmp(a).then(i.cmp(j)))
+            .map(|(i, _)| i)
             .collect();
 
-        // relabel suits
-        let cards: Vec<(Rank, usize)> = cards.iter().map(|card| {
-            let relabeled_suit = suits_sorted.iter().position(|&suit| (card.suit as usize) == suit).unwrap();
-            (card.rank, relabeled_suit)
-        }).collect();
+        // Build suit groups
+        let mut your_groups: [Vec<Rank>; 4] = std::array::from_fn(|_| Vec::new());
+        let mut comm_groups: [Vec<Rank>; 4] = std::array::from_fn(|_| Vec::new());
+        let mut opp_groups: [Vec<Rank>; 4] = std::array::from_fn(|_| Vec::new());
 
-        // encode
-        // cards.iter().enumerate()
-        //     .map(|(i, c)| c.rank as usize * 13_usize.pow(i as u32))
-        //     .sum()
+        let relabel_suit = |card: Card| -> usize { suits_sorted.iter().position(|&suit| (card.suit as usize) == suit).unwrap() };
+
+        your_cards.iter().for_each(|&card| { your_groups[relabel_suit(card)].push(card.rank); });
+        community_pot.iter().for_each(|&card| { comm_groups[relabel_suit(card)].push(card.rank); });
+        opp_cards_pot.iter().for_each(|&card| { opp_groups[relabel_suit(card)].push(card.rank); });
+
+        your_groups.iter_mut()
+            .chain(comm_groups.iter_mut())
+            .chain(opp_groups.iter_mut())
+            .for_each(|group| { group.sort_by(|a, b| b.cmp(a)); });
+
+        // Find individual indices (colex)
+        let mut your_indices = [0_usize; 4];
+        let mut comm_indices = [0_usize; 4];
+        let mut opp_indices = [0_usize; 4];
+
+        let colex_index = |group: &[Rank]| -> usize {
+            group.iter().enumerate().fold(0, |sum, (j, &rank)| sum + choose(rank as usize, j + 1))
+        };
+
+        your_groups.iter().enumerate().for_each(|(i, group)| { your_indices[i] = colex_index(group); });
+        comm_groups.iter().enumerate().for_each(|(i, group)| { comm_indices[i] = colex_index(group); });
+        opp_groups.iter().enumerate().for_each(|(i, group)| { opp_indices[i] = colex_index(group); });
+
+        // Combine to overall local index (mixed-radix formula)
+        let local_index = |indices: [usize; 4], groups: &[Vec<Rank>; 4]| -> usize {
+            indices.iter()
+                .zip(groups.iter().map(|group| group.len()))
+                .rev().skip(1)
+                .fold(*indices.last().unwrap(), |acc, (c_i, n_i)| {
+                    c_i + choose(13, n_i) * acc
+                })
+        };
+
+        let your_index = local_index(your_indices, &your_groups);
+        let comm_index = local_index(comm_indices, &comm_groups);
+        let opp_index = local_index(opp_indices, &opp_groups);
+
+        // Add partition offset to get global index
+        let your_offset = match your_groups.map(|g| g.len()) {
+            [2,0,0,0] => 0,
+            [1,1,0,0] => 78,
+            _ => unreachable!()
+        };
+
+        let comm_offset = match comm_groups.map(|g| g.len()) {
+            [5,0,0,0] => 0,
+            [4,1,0,0] => 1_287,
+            [3,2,0,0] => 10_582,
+            [3,1,1,0] => 32_890,
+            [2,2,1,0] => 81_224,
+            [2,1,1,1] => 160_316,
+            _ => unreachable!()
+        };
+
+        let opp_offset = match opp_groups.map(|g| g.len()) {
+            [2,0,0,0] => 0,
+            [1,1,0,0] => 78,
+            _ => unreachable!()
+        };
+
         todo!();
     };
 
@@ -82,9 +143,7 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
                     true
                 },
                 true => false
-            };
-
-            true
+            }
         }).collect::<Vec<_>>();
 
         (community_pot, all_opp_cards)
@@ -97,7 +156,7 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
         println!("Total filtered outcomes: {}", count.separate_with_commas());
     }
 
-    // count how many outcomes you win
+    // Count how many outcomes you win
     let wins = all_outcomes_filtered.map(|(community_pot, all_opp_cards)| {
         let win_rate = all_opp_cards.iter().fold(0.0, |sum, opp_cards_pot| {
             let opp_rank = hand_rank_all(&opp_cards_pot, &community_pot);
