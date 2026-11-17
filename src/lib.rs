@@ -15,7 +15,7 @@ pub use std::{
     cmp::Ordering,
     fmt::{ Debug, Display, Formatter },
     fs::File,
-    io::{ BufReader, BufRead },
+    io::{ BufReader, BufRead, Write },
 };
 
 pub use bitvec::prelude::*;

@@ -11,7 +11,7 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
     let all_community: Vec<[Card; 5]> = deck.iter()
         .filter(|c| your_cards.iter().all(|o| !c.strictly_eq(&o)))
         .filter(|c| community.iter().filter(|c| c.is_some()).all(|o| !c.strictly_eq(&o.unwrap())))
-        .combinations(5 - community_count)
+        .permutations(5 - community_count)
         .map(|community_rem_pot| {
             let mut community_pot = [Card::default(); 5];
 
@@ -30,7 +30,7 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
         let all_opp_cards = deck.iter()
             .filter(|c| your_cards.iter().all(|o| !c.strictly_eq(&o)))
             .filter(move |c| community_pot.iter().all(|o| !c.strictly_eq(o)))
-            .combinations(2)
+            .permutations(2)
             .map(|opp_cards_pot| [ opp_cards_pot[0].clone(), opp_cards_pot[1].clone() ]);
 
         (community_pot, all_opp_cards)
@@ -41,13 +41,14 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
 
     // Remove redundant outcomes
     let mut indexer: hand_indexer_t = unsafe { std::mem::zeroed() };
-    unsafe { hand_indexer_init(2, [5u8, 2].as_ptr(), &mut indexer); }
+    unsafe { hand_indexer_init(3, [2u8, 5, 2].as_ptr(), &mut indexer); }
 
-    let indexer_size = unsafe { hand_indexer_size(&indexer, 1) } as usize;
+    let indexer_size = unsafe { hand_indexer_size(&indexer, 2) } as usize;
     let outcome_count = std::cell::UnsafeCell::new(bitvec![0; indexer_size]);
 
     let encode = |community_pot: &[Card; 5], opp_cards_pot: &[Card; 2]| -> usize {
-        let cards: [u8; 7] = [
+        let cards: [u8; 9] = [
+            your_cards[0], your_cards[1],
             community_pot[0], community_pot[1], community_pot[2], community_pot[3], community_pot[4],
             opp_cards_pot[0], opp_cards_pot[1],
         ].map(|c| (c.rank as u8) * 4 + (c.suit as u8));
@@ -55,9 +56,19 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
         unsafe { hand_index_last(&indexer, cards.as_ptr()) as usize }
     };
 
+    // let mut redundancies: Vec<Vec<String>> = vec![Vec::new(); indexer_size];
+
     let all_outcomes_filtered = all_outcomes.map(|(community_pot, all_opp_cards)| {
         let all_opp_cards = all_opp_cards.filter(|opp_cards_pot| {
             let index = encode(&community_pot, opp_cards_pot);
+
+            // // Temp
+            // let encoded: String = community_pot.iter()
+            //     .chain(opp_cards_pot.iter())
+            //     .map(|&x| x.raw())
+            //     .collect::<Vec<_>>().join(" ");
+
+            // redundancies[index].push(encoded);
 
             unsafe {
                 let oc = &mut *outcome_count.get();
@@ -71,11 +82,17 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
         (community_pot, all_opp_cards)
     }).filter(|(_, all_opp_cards)| all_opp_cards.len() > 0);
 
+    // let mut f = File::create("out.csv").unwrap();
+    // redundancies.iter().for_each(|row| {
+    //     writeln!(f, "{}", row.join(",")).unwrap();
+    // });
+
     unsafe {
         let raw: *const _ = &all_outcomes_filtered;
         let clone = std::ptr::read(raw);
         let filtered_count = clone.map(|(_, all_opp_cards)| all_opp_cards.len()).sum::<usize>();
         println!("Total filtered outcomes: {}", filtered_count.separate_with_commas());
+        println!("Shrinkage: {:.2}x", (total_count as f64 / filtered_count as f64));
         (&mut *outcome_count.get()).fill(false);
     }
 
