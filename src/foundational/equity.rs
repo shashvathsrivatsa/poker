@@ -91,12 +91,12 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
             }
         }) / all_opp_cards.len() as f64;
 
-        win_rate
+        (win_rate, all_opp_cards.len())
 
     }).collect::<Vec<_>>();
 
-    histogram(&wins, 15);
+    histogram(&wins.iter().map(|&(x, _)| x).collect::<Vec<_>>(), 15);
     unsafe { hand_indexer_free(&mut indexer); }
-    wins.iter().sum::<f64>() / wins.len() as f64
+    wins.iter().map(|&(x, y)| x * y as f64).sum::<f64>() / wins.iter().map(|&(_, x)| x).sum::<usize>() as f64
 }
 
