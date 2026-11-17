@@ -36,113 +36,35 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
         (community_pot, all_opp_cards)
     });
 
-    println!(
-        "Total possible outcomes: {}",
-        all_outcomes.clone().map(|(_, all_opp_cards)| all_opp_cards.count()).sum::<usize>().separate_with_commas(),
-    );
+    let total_count = all_outcomes.clone().map(|(_, all_opp_cards)| all_opp_cards.count()).sum::<usize>();
+    println!("Total possible outcomes: {}", total_count.separate_with_commas());
 
     // Remove redundant outcomes
-    let mut outcome_count = bitvec!(0; 392_705_170);
+    let mut indexer: hand_indexer_t = unsafe { std::mem::zeroed() };
+    unsafe { hand_indexer_init(2, [5u8, 2].as_ptr(), &mut indexer); }
+
+    let indexer_size = unsafe { hand_indexer_size(&indexer, 1) } as usize;
+    let outcome_count = std::cell::UnsafeCell::new(bitvec![0; indexer_size]);
 
     let encode = |community_pot: &[Card; 5], opp_cards_pot: &[Card; 2]| -> usize {
-        // let cards: Vec<Card> = community_pot.iter()
-        //     .chain(opp_cards_pot.iter())
-        //     .chain(your_cards.iter())
-        //     .cloned().collect();
+        let cards: [u8; 7] = [
+            community_pot[0], community_pot[1], community_pot[2], community_pot[3], community_pot[4],
+            opp_cards_pot[0], opp_cards_pot[1],
+        ].map(|c| (c.rank as u8) * 4 + (c.suit as u8));
 
-        // Build suits count
-        let mut suit_counts = [0; 4];
-
-        community_pot.iter()
-            .chain(opp_cards_pot.iter())
-            .chain(your_cards.iter())
-            .for_each(|c| { suit_counts[c.suit as usize] += 1; });
-
-        // Sort suits count
-        let suits_sorted: Vec<usize> = suit_counts.into_iter().enumerate()
-            .sorted_by(|(i, a), (j, b)| b.cmp(a).then(i.cmp(j)))
-            .map(|(i, _)| i)
-            .collect();
-
-        // Build suit groups
-        let mut your_groups: [Vec<Rank>; 4] = std::array::from_fn(|_| Vec::new());
-        let mut comm_groups: [Vec<Rank>; 4] = std::array::from_fn(|_| Vec::new());
-        let mut opp_groups: [Vec<Rank>; 4] = std::array::from_fn(|_| Vec::new());
-
-        let relabel_suit = |card: Card| -> usize { suits_sorted.iter().position(|&suit| (card.suit as usize) == suit).unwrap() };
-
-        your_cards.iter().for_each(|&card| { your_groups[relabel_suit(card)].push(card.rank); });
-        community_pot.iter().for_each(|&card| { comm_groups[relabel_suit(card)].push(card.rank); });
-        opp_cards_pot.iter().for_each(|&card| { opp_groups[relabel_suit(card)].push(card.rank); });
-
-        your_groups.iter_mut()
-            .chain(comm_groups.iter_mut())
-            .chain(opp_groups.iter_mut())
-            .for_each(|group| { group.sort_by(|a, b| b.cmp(a)); });
-
-        // Find individual indices (colex)
-        let mut your_indices = [0_usize; 4];
-        let mut comm_indices = [0_usize; 4];
-        let mut opp_indices = [0_usize; 4];
-
-        let colex_index = |group: &[Rank]| -> usize {
-            group.iter().enumerate().fold(0, |sum, (j, &rank)| sum + choose(rank as usize, j + 1))
-        };
-
-        your_groups.iter().enumerate().for_each(|(i, group)| { your_indices[i] = colex_index(group); });
-        comm_groups.iter().enumerate().for_each(|(i, group)| { comm_indices[i] = colex_index(group); });
-        opp_groups.iter().enumerate().for_each(|(i, group)| { opp_indices[i] = colex_index(group); });
-
-        // Combine to overall local index (mixed-radix formula)
-        let local_index = |indices: [usize; 4], groups: &[Vec<Rank>; 4]| -> usize {
-            indices.iter()
-                .zip(groups.iter().map(|group| group.len()))
-                .rev().skip(1)
-                .fold(*indices.last().unwrap(), |acc, (c_i, n_i)| {
-                    c_i + choose(13, n_i) * acc
-                })
-        };
-
-        let your_index = local_index(your_indices, &your_groups);
-        let comm_index = local_index(comm_indices, &comm_groups);
-        let opp_index = local_index(opp_indices, &opp_groups);
-
-        // Add partition offset to get global index
-        let your_offset = match your_groups.map(|g| g.len()) {
-            [2,0,0,0] => 0,
-            [1,1,0,0] => 78,
-            _ => unreachable!()
-        };
-
-        let comm_offset = match comm_groups.map(|g| g.len()) {
-            [5,0,0,0] => 0,
-            [4,1,0,0] => 1_287,
-            [3,2,0,0] => 10_582,
-            [3,1,1,0] => 32_890,
-            [2,2,1,0] => 81_224,
-            [2,1,1,1] => 160_316,
-            _ => unreachable!()
-        };
-
-        let opp_offset = match opp_groups.map(|g| g.len()) {
-            [2,0,0,0] => 0,
-            [1,1,0,0] => 78,
-            _ => unreachable!()
-        };
-
-        todo!();
+        unsafe { hand_index_last(&indexer, cards.as_ptr()) as usize }
     };
 
     let all_outcomes_filtered = all_outcomes.map(|(community_pot, all_opp_cards)| {
         let all_opp_cards = all_opp_cards.filter(|opp_cards_pot| {
             let index = encode(&community_pot, opp_cards_pot);
 
-            match outcome_count[index] {
-                false => {
-                    outcome_count.set(index, true);
-                    true
-                },
-                true => false
+            unsafe {
+                let oc = &mut *outcome_count.get();
+                match oc[index] {
+                    false => { oc.set(index, true); true },
+                    true => false,
+                }
             }
         }).collect::<Vec<_>>();
 
@@ -152,8 +74,9 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
     unsafe {
         let raw: *const _ = &all_outcomes_filtered;
         let clone = std::ptr::read(raw);
-        let count = clone.map(|(_, all_opp_cards)| all_opp_cards.iter().count()).sum::<usize>();
-        println!("Total filtered outcomes: {}", count.separate_with_commas());
+        let filtered_count = clone.map(|(_, all_opp_cards)| all_opp_cards.len()).sum::<usize>();
+        println!("Total filtered outcomes: {}", filtered_count.separate_with_commas());
+        (&mut *outcome_count.get()).fill(false);
     }
 
     // Count how many outcomes you win
@@ -173,7 +96,7 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
     }).collect::<Vec<_>>();
 
     histogram(&wins, 15);
-
+    unsafe { hand_indexer_free(&mut indexer); }
     wins.iter().sum::<f64>() / wins.len() as f64
 }
 

@@ -3,6 +3,9 @@ name = "poker_bot"
 version = "0.1.0"
 edition = "2024"
 
+[build-dependencies]
+cc = "1"
+
 [dependencies]
 bitvec = "1.1.1"
 itertools = "0.15.0"
