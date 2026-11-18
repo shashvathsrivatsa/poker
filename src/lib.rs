@@ -12,6 +12,7 @@ pub use visualization::*;
 
 pub use std::{
     array,
+    collections::HashSet,
     cmp::Ordering,
     fmt::{ Debug, Display, Formatter },
     fs::File,

@@ -43,10 +43,7 @@ pub fn hand_strength(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 
     let mut indexer: hand_indexer_t = unsafe { std::mem::zeroed() };
     unsafe { hand_indexer_init(3, [2u8, 5, 2].as_ptr(), &mut indexer); }
 
-    let indexer_size = unsafe { hand_indexer_size(&indexer, 2) } as usize;
-    println!("yo");
-    let outcome_count = std::sync::Mutex::new(bitvec![0u8; indexer_size]);
-    println!("yo");
+    let outcome_count = std::sync::Mutex::new(HashSet::<usize>::new());
 
     let encode = |community_pot: &[Card; 5], opp_cards_pot: &[Card; 2]| -> usize {
         let cards: [u8; 9] = [
@@ -62,11 +59,7 @@ pub fn hand_strength(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 
         let all_opp_cards = all_opp_cards.filter(|opp_cards_pot| {
             let index = encode(&community_pot, opp_cards_pot);
             let mut oc = outcome_count.lock().unwrap();
-
-            match oc[index] {
-                false => { oc.set(index, true); true },
-                true => false,
-            }
+            oc.insert(index)
         }).collect::<Vec<_>>();
 
         (community_pot, all_opp_cards)
@@ -78,7 +71,7 @@ pub fn hand_strength(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 
         let filtered_count = clone.map(|(_, all_opp_cards)| all_opp_cards.len()).sum::<usize>();
         println!("Total filtered outcomes: {}", filtered_count.separate_with_commas());
         println!("Shrinkage: {:.2}x", (total_count as f64 / filtered_count as f64));
-        outcome_count.lock().unwrap().fill(false);
+        outcome_count.lock().unwrap().clear();
     }
 
     // Count how many outcomes you win
