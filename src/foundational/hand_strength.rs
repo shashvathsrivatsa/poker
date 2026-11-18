@@ -26,7 +26,7 @@ pub fn hand_strength(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 
     .collect();
 
     // Enumerate all outcomes
-    let all_outcomes = all_community.iter().map(|&community_pot| {
+    let all_outcomes = all_community.par_iter().map(|&community_pot| {
         let all_opp_cards = deck.iter()
             .filter(|c| your_cards.iter().all(|o| !c.strictly_eq(&o)))
             .filter(move |c| community_pot.iter().all(|o| !c.strictly_eq(o)))
@@ -44,7 +44,9 @@ pub fn hand_strength(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 
     unsafe { hand_indexer_init(3, [2u8, 5, 2].as_ptr(), &mut indexer); }
 
     let indexer_size = unsafe { hand_indexer_size(&indexer, 2) } as usize;
-    let outcome_count = std::cell::UnsafeCell::new(bitvec![0; indexer_size]);
+    println!("yo");
+    let outcome_count = std::sync::Mutex::new(bitvec![0u8; indexer_size]);
+    println!("yo");
 
     let encode = |community_pot: &[Card; 5], opp_cards_pot: &[Card; 2]| -> usize {
         let cards: [u8; 9] = [
@@ -59,13 +61,11 @@ pub fn hand_strength(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 
     let all_outcomes_filtered = all_outcomes.map(|(community_pot, all_opp_cards)| {
         let all_opp_cards = all_opp_cards.filter(|opp_cards_pot| {
             let index = encode(&community_pot, opp_cards_pot);
+            let mut oc = outcome_count.lock().unwrap();
 
-            unsafe {
-                let oc = &mut *outcome_count.get();
-                match oc[index] {
-                    false => { oc.set(index, true); true },
-                    true => false,
-                }
+            match oc[index] {
+                false => { oc.set(index, true); true },
+                true => false,
             }
         }).collect::<Vec<_>>();
 
@@ -78,7 +78,7 @@ pub fn hand_strength(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 
         let filtered_count = clone.map(|(_, all_opp_cards)| all_opp_cards.len()).sum::<usize>();
         println!("Total filtered outcomes: {}", filtered_count.separate_with_commas());
         println!("Shrinkage: {:.2}x", (total_count as f64 / filtered_count as f64));
-        (&mut *outcome_count.get()).fill(false);
+        outcome_count.lock().unwrap().fill(false);
     }
 
     // Count how many outcomes you win

@@ -4,7 +4,7 @@ pub trait Percent {
 
 impl Percent for f64 {
     fn percent(&self) -> String {
-        format!("{:?}%", self * 100.0)
+        format!("{:.2?}%", self * 100.0)
     }
 }
 
