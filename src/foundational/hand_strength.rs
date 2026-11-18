@@ -1,8 +1,8 @@
 use crate::*;
 
-// ——— Equity —————————————————————————————————————————————————————————————————————————————————————————————————————————
+// ——— Hand Strength ——————————————————————————————————————————————————————————————————————————————————————————————————
 
-pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64 {
+pub fn hand_strength(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> f64 {
     let your_cards: [Card; 2] = [your_cards[0].unwrap(), your_cards[1].unwrap()];
     let community_count = community.iter().filter(|c| c.is_some()).count();
     let deck: Vec<Card> = Deck::new().draw_pile;
@@ -56,19 +56,9 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
         unsafe { hand_index_last(&indexer, cards.as_ptr()) as usize }
     };
 
-    // let mut redundancies: Vec<Vec<String>> = vec![Vec::new(); indexer_size];
-
     let all_outcomes_filtered = all_outcomes.map(|(community_pot, all_opp_cards)| {
         let all_opp_cards = all_opp_cards.filter(|opp_cards_pot| {
             let index = encode(&community_pot, opp_cards_pot);
-
-            // // Temp
-            // let encoded: String = community_pot.iter()
-            //     .chain(opp_cards_pot.iter())
-            //     .map(|&x| x.raw())
-            //     .collect::<Vec<_>>().join(" ");
-
-            // redundancies[index].push(encoded);
 
             unsafe {
                 let oc = &mut *outcome_count.get();
@@ -81,11 +71,6 @@ pub fn equity(your_cards: &[Option<Card>; 2], community: &[Option<Card>; 5]) -> 
 
         (community_pot, all_opp_cards)
     }).filter(|(_, all_opp_cards)| all_opp_cards.len() > 0);
-
-    // let mut f = File::create("out.csv").unwrap();
-    // redundancies.iter().for_each(|row| {
-    //     writeln!(f, "{}", row.join(",")).unwrap();
-    // });
 
     unsafe {
         let raw: *const _ = &all_outcomes_filtered;

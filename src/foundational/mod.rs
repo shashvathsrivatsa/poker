@@ -1,2 +1,2 @@
-pub mod equity;
-pub use equity::*;
+pub mod hand_strength;
+pub use hand_strength::*;
